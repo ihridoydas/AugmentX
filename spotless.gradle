@@ -1,0 +1,23 @@
+apply plugin: "com.diffplug.spotless"
+spotless {
+    java {
+        target '**/*.java'
+        googleJavaFormat().aosp()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        indentWithSpaces()
+        endWithNewline()
+    }
+    kotlin {
+        target "**/*.kt"
+        targetExclude "spotless/*.kt"
+        trimTrailingWhitespace()
+        ktlint().editorConfigOverride([
+            "standard:filename": "disabled",
+            "standard:backing-property-naming": "disabled"
+        ])
+        indentWithSpaces()
+        endWithNewline()
+        licenseHeaderFile(rootProject.file("spotless/copyright.kt"))
+    }
+}

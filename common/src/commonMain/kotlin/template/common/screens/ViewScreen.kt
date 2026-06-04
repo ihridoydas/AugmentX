@@ -24,33 +24,19 @@
 */
 package template.common.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
+import template.common.SceneView
 import template.common.components.AppBar
 import template.common.generated.resources.Res
-import template.common.generated.resources.nice_to_meet_you
 import template.common.generated.resources.welcome
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,19 +51,12 @@ fun ViewScreen(onBackPress: () -> Unit) {
                 onNav = onBackPress,
             )
         },
-        content = {
-            Box(modifier = Modifier.padding(it)) {
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxSize(),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.nice_to_meet_you),
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
+        content = { padding ->
+            Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+                SceneView(
+                    modifier = Modifier.fillMaxSize(),
+                    modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb"
+                )
             }
         },
     )

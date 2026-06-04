@@ -9,7 +9,7 @@ plugins {
 kotlin {
     androidTarget {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
     }
     jvm()
@@ -75,6 +75,7 @@ kotlin {
                 api(libs.androidx.activity.compose)
                 implementation(libs.androidx.core.ktx)
                 implementation(libs.ktor.client.android)
+                implementation(libs.sceneview)
             }
         }
         val androidUnitTest by getting {
@@ -88,6 +89,8 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.ktor.client.cio)
                 implementation(libs.kotlin.coroutines.swing)
+                implementation(libs.webviewMultiplatform)
+                implementation(libs.kcef)
             }
         }
         val iosArm64Main by getting
@@ -100,12 +103,18 @@ kotlin {
             iosSimulatorArm64Main.dependsOn(this)
             dependencies {
                 implementation(libs.ktor.client.darwin)
+                implementation(libs.webviewMultiplatform)
             }
         }
         val iosTest by creating {
             dependsOn(commonTest)
             iosArm64Test.dependsOn(this)
             iosSimulatorArm64Test.dependsOn(this)
+        }
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
+            }
         }
     }
 }
@@ -117,6 +126,27 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "template.common.MainKt"
+        jvmArgs(
+            "--add-opens", "java.desktop/sun.awt=ALL-UNNAMED",
+            "--add-opens", "java.desktop/java.awt.peer=ALL-UNNAMED",
+            "--add-opens", "java.desktop/sun.lwawt=ALL-UNNAMED",
+            "--add-opens", "java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+            "--add-opens", "java.base/java.nio=ALL-UNNAMED",
+            "--add-opens", "java.desktop/sun.java2d=ALL-UNNAMED",
+            "--add-opens", "java.desktop/apple.laf=ALL-UNNAMED",
+            "--add-opens", "java.desktop/com.apple.laf=ALL-UNNAMED",
+            "--add-opens", "java.desktop/com.apple.eawt=ALL-UNNAMED",
+            "--add-exports", "java.desktop/sun.lwawt=ALL-UNNAMED",
+            "--add-exports", "java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
+            "--add-exports", "java.desktop/sun.awt=ALL-UNNAMED",
+            "-Dapple.awt.UIElement=false",
+            "-Djava.awt.headless=false",
+            "-Dapple.awt.fullWindowContent=true",
+            "-Dapple.laf.useScreenMenuBar=true",
+            "-Dskiko.renderApi=METAL",
+            "-Dkcef.jbr.jcef.disable=true"
+        )
         nativeDistributions {
             targetFormats(
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
@@ -138,8 +168,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     testOptions {

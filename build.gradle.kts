@@ -19,6 +19,7 @@ plugins {
     alias(libs.plugins.protobuf) apply false
     alias(libs.plugins.gradle.versions) apply false
     alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.javafx.plugin) apply false
 }
 
 apply(from = "buildscripts/githooks.gradle")
@@ -39,7 +40,7 @@ subprojects {
     }
 
     tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-        jvmTarget = "17"
+        jvmTarget = "21"
         config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))
     }
 
@@ -51,7 +52,7 @@ subprojects {
 
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
+            jvmTarget.set(JvmTarget.JVM_21)
             freeCompilerArgs.addAll(
                 listOf("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"),
             )

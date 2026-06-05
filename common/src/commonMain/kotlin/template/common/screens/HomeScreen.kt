@@ -262,7 +262,8 @@ fun DemoCard(item: DemoItem, onClick: () -> Unit) {
             ),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -280,7 +281,7 @@ fun DemoCard(item: DemoItem, onClick: () -> Unit) {
                     .background(
                         Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                 MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
                             ),
                         ),
@@ -302,6 +303,7 @@ fun DemoCard(item: DemoItem, onClick: () -> Unit) {
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 if (item.description.isNotEmpty()) {
                     Text(
@@ -313,7 +315,7 @@ fun DemoCard(item: DemoItem, onClick: () -> Unit) {
                     Text(
                         text = stringResource(Res.string.explore_capabilities, item.title.lowercase()),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -323,7 +325,10 @@ fun DemoCard(item: DemoItem, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(
+                        if (item.id.contains("ar")) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondary
+                    ),
             )
         }
     }

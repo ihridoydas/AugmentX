@@ -1,9 +1,14 @@
 package template.common
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import io.github.sceneview.SceneView
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
@@ -36,21 +41,27 @@ actual fun SceneView(
         }
     }
 
-    SceneView(
-        modifier = modifier,
-        engine = engine,
-        modelLoader = modelLoader,
-        cameraManipulator = cameraManipulator,
-        autoFitContent = true
-    ) {
-        modelBuffer.value?.let { buffer ->
-            val modelInstance = remember(buffer) {
-                modelLoader.createModelInstance(buffer)
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        SceneView(
+            modifier = Modifier.fillMaxSize(),
+            engine = engine,
+            modelLoader = modelLoader,
+            cameraManipulator = cameraManipulator,
+            autoFitContent = true
+        ) {
+            modelBuffer.value?.let { buffer ->
+                val modelInstance = remember(buffer) {
+                    modelLoader.createModelInstance(buffer)
+                }
+                ModelNode(
+                    modelInstance = modelInstance,
+                    scaleToUnits = 1.0f
+                )
             }
-            ModelNode(
-                modelInstance = modelInstance,
-                scaleToUnits = 1.0f
-            )
+        }
+
+        if (modelBuffer.value == null && modelUrl != null) {
+            CircularProgressIndicator(color = Color.White)
         }
     }
 }

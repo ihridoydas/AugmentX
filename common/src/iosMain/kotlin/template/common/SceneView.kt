@@ -153,7 +153,7 @@ actual fun SceneView(
             WebView(state = state, modifier = Modifier.fillMaxSize())
 
             if (state.isLoading) {
-                CircularProgressIndicator(color = Color(0xFFDAA520))
+                CircularProgressIndicator(color = Color.White)
             }
         }
     }

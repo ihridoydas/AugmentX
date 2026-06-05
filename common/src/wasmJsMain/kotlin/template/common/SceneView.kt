@@ -1,14 +1,17 @@
 package template.common
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.round
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
 
 @Composable
@@ -18,38 +21,52 @@ actual fun SceneView(
 ) {
     if (modelUrl == null) return
 
-    val viewId = remember { "online-model-viewer-${modelUrl.hashCode()}" }
-    val density = LocalDensity.current
+    var isLoading by remember(modelUrl) { mutableStateOf(true) }
+    var bounds by remember { mutableStateOf(IntRect.Zero) }
+    
+    val container = remember(modelUrl) {
+        (document.createElement("div") as HTMLElement).apply {
+            setAttribute("style", "position:fixed; z-index: 999; pointer-events: auto; display: block; opacity: 0;")
+            innerHTML = "<model-viewer src=\"$modelUrl\" auto-rotate camera-controls style=\"width:100%; height:100%;\"></model-viewer>"
+            
+            val mv = firstElementChild as? HTMLElement
+            mv?.addEventListener("load", { isLoading = false })
+            mv?.addEventListener("error", { isLoading = false })
+        }
+    }
+
+    // Force show after a few seconds
+    LaunchedEffect(modelUrl) {
+        kotlinx.coroutines.delay(5000)
+        isLoading = false
+    }
+
+    // Synchronize DOM element with Compose state
+    SideEffect {
+        val d = window.devicePixelRatio
+        if (bounds != IntRect.Zero) {
+            container.style.left = "${bounds.left / d}px"
+            container.style.top = "${bounds.top / d}px"
+            container.style.width = "${bounds.width / d}px"
+            container.style.height = "${bounds.height / d}px"
+            container.style.opacity = if (isLoading) "0" else "1"
+        }
+    }
 
     Box(
         modifier = modifier.onGloballyPositioned { coordinates ->
-            val position = coordinates.positionInWindow()
+            val position = coordinates.positionInWindow().round()
             val size = coordinates.size
-            val container = document.getElementById(viewId) as? HTMLElement
-            if (container != null) {
-                container.style.left = "${position.x / density.density}px"
-                container.style.top = "${position.y / density.density}px"
-                container.style.width = "${size.width / density.density}px"
-                container.style.height = "${size.height / density.density}px"
-                container.style.display = "block"
-            }
-        }
+            bounds = IntRect(position, size)
+        },
+        contentAlignment = Alignment.Center
     ) {
-        DisposableEffect(modelUrl) {
-            val container = document.createElement("div") as HTMLElement
-            container.id = viewId
-            // Temporary debug: On top of everything with a lime border
-            container.setAttribute("style", "position:fixed; z-index: 100; pointer-events: auto; display: none; border: 2px solid lime; background: #111;")
-            
-            val modelViewer = document.createElement("model-viewer")
-            modelViewer.setAttribute("src", modelUrl)
-            modelViewer.setAttribute("auto-rotate", "")
-            modelViewer.setAttribute("camera-controls", "")
-            modelViewer.setAttribute("style", "width:100%; height:100%;")
-            
-            container.appendChild(modelViewer)
+        if (isLoading) {
+            CircularProgressIndicator(color = Color.White)
+        }
+
+        DisposableEffect(container) {
             document.body?.appendChild(container)
-            
             onDispose {
                 document.body?.removeChild(container)
             }

@@ -34,6 +34,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import template.common.screens.HomeScreen
 import template.common.screens.ViewScreen
+import template.common.screens.DemoScreen
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
@@ -71,6 +72,17 @@ fun MainAnimationNavHost() {
 
                     ScreenDestinations.ViewScreen -> NavEntry(key) {
                         ViewScreen(
+                            onBackPress = {
+                                if (backStack.size > 1) {
+                                    backStack.removeAt(backStack.size - 1)
+                                }
+                            },
+                        )
+                    }
+
+                    is ScreenDestinations.DemoScreen -> NavEntry(key) {
+                        DemoScreen(
+                            id = key.id,
                             onBackPress = {
                                 if (backStack.size > 1) {
                                     backStack.removeAt(backStack.size - 1)

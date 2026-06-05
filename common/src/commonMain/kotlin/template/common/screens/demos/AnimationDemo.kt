@@ -32,7 +32,7 @@ fun AnimationDemo(onBack: () -> Unit) {
             // Using an animated model
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AnimatedMorphCube/glTF-Binary/AnimatedMorphCube.glb"
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
             )
         }
     }

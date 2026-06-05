@@ -32,7 +32,7 @@ fun GeometryDemo(onBack: () -> Unit) {
             // Using a simple cube model as a placeholder for geometry demo
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb"
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
             )
         }
     }

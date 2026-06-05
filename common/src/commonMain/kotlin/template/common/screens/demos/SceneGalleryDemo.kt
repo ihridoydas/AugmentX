@@ -32,7 +32,7 @@ fun SceneGalleryDemo(onBack: () -> Unit) {
             // Using a complex scene model
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF-Binary/FlightHelmet.glb"
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
             )
         }
     }

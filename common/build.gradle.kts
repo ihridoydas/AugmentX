@@ -142,8 +142,7 @@ compose.desktop {
             "-Djava.awt.headless=false",
             "-Dapple.awt.fullWindowContent=true",
             "-Dapple.laf.useScreenMenuBar=true",
-            "-Dskiko.renderApi=METAL",
-            "-Dkcef.jbr.jcef.disable=true"
+            "-Dskiko.renderApi=METAL"
         )
         nativeDistributions {
             targetFormats(

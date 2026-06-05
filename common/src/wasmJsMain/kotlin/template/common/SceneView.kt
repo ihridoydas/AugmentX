@@ -1,7 +1,8 @@
 package template.common
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -9,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -35,12 +37,6 @@ actual fun SceneView(
         }
     }
 
-    // Force show after a few seconds
-    LaunchedEffect(modelUrl) {
-        kotlinx.coroutines.delay(5000)
-        isLoading = false
-    }
-
     // Synchronize DOM element with Compose state
     SideEffect {
         val d = window.devicePixelRatio
@@ -62,7 +58,17 @@ actual fun SceneView(
         contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
-            CircularProgressIndicator(color = Color.White)
+            Box(modifier = Modifier.fillMaxSize()) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                    color = Color(0xFFDAA520),
+                    trackColor = Color.Transparent
+                )
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color(0xFFDAA520)
+                )
+            }
         }
 
         DisposableEffect(container) {

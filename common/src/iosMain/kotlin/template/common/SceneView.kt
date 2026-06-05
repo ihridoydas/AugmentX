@@ -1,17 +1,13 @@
 package template.common
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberWebViewStateWithHTMLData
 import io.ktor.client.HttpClient
@@ -27,18 +23,10 @@ import platform.Foundation.NSURL
 import platform.Foundation.dataWithBytes
 import platform.Foundation.writeToURL
 import platform.ModelIO.MDLAsset
-import platform.SceneKit.SCNCamera
-import platform.SceneKit.SCNLight
-import platform.SceneKit.SCNLightTypeAmbient
-import platform.SceneKit.SCNLightTypeOmni
-import platform.SceneKit.SCNNode
-import platform.SceneKit.SCNScene
-import platform.SceneKit.SCNSceneSource
-import platform.SceneKit.SCNVector3Make
-import platform.SceneKit.SCNView
-import platform.SceneKit.sceneWithMDLAsset
+import platform.SceneKit.*
 import platform.UIKit.UIColor
 import androidx.compose.ui.interop.UIKitView
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -50,10 +38,12 @@ actual fun SceneView(
     var scene by remember { mutableStateOf<SCNScene?>(null) }
     var isCheckingNative by remember { mutableStateOf(false) }
     var nativeFailed by remember { mutableStateOf(false) }
+    var showLoader by remember(modelUrl) { mutableStateOf(modelUrl != null) }
 
     LaunchedEffect(modelUrl) {
         if (modelUrl != null) {
             isCheckingNative = true
+            showLoader = true
             try {
                 val bytes = client.get(modelUrl).readRawBytes()
                 val nsData = bytes.usePinned { pinned ->
@@ -102,21 +92,28 @@ actual fun SceneView(
                     
                     scene = finalScene
                     nativeFailed = false
+                    showLoader = false
                 } else {
                     nativeFailed = true
                 }
-                isCheckingNative = false
             } catch (ignored: Exception) {
                 nativeFailed = true
+            } finally {
                 isCheckingNative = false
             }
         }
     }
 
+    // Safety timeout for loader
+    LaunchedEffect(modelUrl) {
+        if (modelUrl != null) {
+            delay(8000)
+            showLoader = false
+        }
+    }
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (isCheckingNative) {
-            CircularProgressIndicator(color = Color.White)
-        } else if (!nativeFailed && scene != null) {
+        if (!isCheckingNative && !nativeFailed && scene != null) {
             UIKitView(
                 factory = {
                     SCNView().apply {
@@ -128,7 +125,7 @@ actual fun SceneView(
                 modifier = Modifier.fillMaxSize(),
                 update = { view -> view.scene = scene }
             )
-        } else if (modelUrl != null) {
+        } else if (modelUrl != null && !isCheckingNative) {
             val html = remember(modelUrl) {
                 """
                 <!DOCTYPE html>
@@ -153,7 +150,25 @@ actual fun SceneView(
             WebView(state = state, modifier = Modifier.fillMaxSize())
 
             if (state.isLoading) {
-                CircularProgressIndicator(color = Color.White)
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                    color = Color(0xFFDAA520),
+                    trackColor = Color.Transparent
+                )
+            }
+        }
+
+        if (showLoader && (isCheckingNative || (nativeFailed && modelUrl != null))) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                    color = Color(0xFFDAA520),
+                    trackColor = Color.Transparent
+                )
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color(0xFFDAA520)
+                )
             }
         }
     }

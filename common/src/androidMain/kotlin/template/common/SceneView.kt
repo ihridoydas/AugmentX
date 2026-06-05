@@ -1,14 +1,13 @@
 package template.common
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
@@ -18,6 +17,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
+import kotlinx.coroutines.delay
 import java.nio.ByteBuffer
 
 @Composable
@@ -25,6 +25,7 @@ actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?
 ) {
+    var isLoading by remember(modelUrl) { mutableStateOf(modelUrl != null) }
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val cameraManipulator = rememberCameraManipulator()
@@ -37,7 +38,17 @@ actual fun SceneView(
                 value = ByteBuffer.wrap(bytes)
             } catch (e: Exception) {
                 android.util.Log.e("SceneView", "Failed to download model: $modelUrl", e)
+            } finally {
+                isLoading = false
             }
+        }
+    }
+
+    // Safety timeout for loader
+    LaunchedEffect(modelUrl) {
+        if (modelUrl != null) {
+            delay(8000)
+            isLoading = false
         }
     }
 
@@ -60,8 +71,18 @@ actual fun SceneView(
             }
         }
 
-        if (modelBuffer.value == null && modelUrl != null) {
-            CircularProgressIndicator(color = Color.White)
+        if (isLoading && modelUrl != null) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                    color = Color(0xFFDAA520),
+                    trackColor = Color.Transparent
+                )
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color(0xFFDAA520)
+                )
+            }
         }
     }
 }

@@ -26,9 +26,6 @@ package template.common
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import dev.datlag.kcef.KCEF
-import kotlinx.coroutines.runBlocking
-import java.io.File
 import template.common.di.initKoin
 
 fun main() {
@@ -60,11 +57,5 @@ fun main() {
     } catch (t: Throwable) {
         println("FATAL: Application crashed: ${t.message}")
         t.printStackTrace()
-    } finally {
-        try {
-            runBlocking {
-                KCEF.dispose()
-            }
-        } catch (_: Exception) {}
     }
 }

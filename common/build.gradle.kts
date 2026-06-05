@@ -89,8 +89,6 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.ktor.client.cio)
                 implementation(libs.kotlin.coroutines.swing)
-                implementation(libs.webviewMultiplatform)
-                implementation(libs.kcef)
             }
         }
         val iosArm64Main by getting

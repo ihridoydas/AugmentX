@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import org.koin.compose.KoinContext
 import org.koin.compose.koinInject
 import template.common.ui.MainAnimationNavHost
@@ -95,7 +96,7 @@ fun App(onLanguageChange: (String) -> Unit = {}, onThemeChange: (Boolean) -> Uni
             TemplateTheme(useDarkTheme = isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
+                    color = Color.Transparent,
                 ) {
                     key(languageCode) {
                         MainAnimationNavHost()

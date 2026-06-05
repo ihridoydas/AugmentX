@@ -8,15 +8,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import org.jetbrains.compose.resources.stringResource
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.generated.resources.Res
+import template.common.generated.resources.category_environment
 
 @Composable
 fun EnvironmentDemo(onBack: () -> Unit) {
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             AppBar(
-                title = "Environment",
+                title = stringResource(Res.string.category_environment) + ": Environment",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )

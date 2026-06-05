@@ -8,15 +8,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import org.jetbrains.compose.resources.stringResource
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.generated.resources.Res
+import template.common.generated.resources.category_3d
 
 @Composable
 fun AnimationDemo(onBack: () -> Unit) {
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent,
         topBar = {
             AppBar(
-                title = "Animation",
+                title = stringResource(Res.string.category_3d) + ": Animation",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )

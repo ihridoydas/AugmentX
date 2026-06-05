@@ -1,7 +1,6 @@
 package template.common.screens
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -14,7 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import template.common.components.AppBar
+import template.common.generated.resources.*
 import template.common.screens.demos.ModelViewerDemo
 import template.common.screens.demos.GeometryDemo
 import template.common.screens.demos.AnimationDemo
@@ -26,60 +27,58 @@ import template.common.screens.demos.EnvironmentDemo
 
 @Composable
 fun DemoScreen(id: String, onBackPress: () -> Unit) {
-    val onBack = onBackPress
-
     when (id) {
-        "model-viewer" -> ModelViewerDemo(onBack)
-        "geometry" -> GeometryDemo(onBack)
-        "animation" -> AnimationDemo(onBack)
-        "scene-gallery" -> SceneGalleryDemo(onBack)
+        "model-viewer" -> ModelViewerDemo(onBackPress)
+        "geometry" -> GeometryDemo(onBackPress)
+        "animation" -> AnimationDemo(onBackPress)
+        "scene-gallery" -> SceneGalleryDemo(onBackPress)
         // Lighting & Environment
-        "lighting" -> LightingDemo(onBack)
-        "movable-light" -> MovableLightDemo(onBack)
-        "fog" -> FogDemo(onBack)
-        "environment" -> EnvironmentDemo(onBack)
+        "lighting" -> LightingDemo(onBackPress)
+        "movable-light" -> MovableLightDemo(onBackPress)
+        "fog" -> FogDemo(onBackPress)
+        "environment" -> EnvironmentDemo(onBackPress)
         // Interaction
-        "camera-controls" -> CameraControlsDemo(onBack)
+        "camera-controls" -> CameraControlsDemo(onBackPress)
         // Content
-        "text" -> TextDemo(onBack)
-        "lines-paths" -> LinesPathsDemo(onBack)
-        "image" -> ImageDemo(onBack)
-        "billboard" -> BillboardDemo(onBack)
-        "video" -> VideoDemo(onBack)
+        "text" -> TextDemo(onBackPress)
+        "lines-paths" -> LinesPathsDemo(onBackPress)
+        "image" -> ImageDemo(onBackPress)
+        "billboard" -> BillboardDemo(onBackPress)
+        "video" -> VideoDemo(onBackPress)
         // Interaction
-        "gesture-editing" -> GestureEditingDemo(onBack)
-        "collision" -> CollisionDemo(onBack)
-        "view-node" -> ViewNodeDemo(onBack)
+        "gesture-editing" -> GestureEditingDemo(onBackPress)
+        "collision" -> CollisionDemo(onBackPress)
+        "view-node" -> ViewNodeDemo(onBackPress)
         // Advanced
-        "dynamic-sky" -> DynamicSkyDemo(onBack)
-        "multi-model" -> MultiModelDemo(onBack)
-        "materials" -> MaterialsDemo(onBack)
-        "physics" -> PhysicsDemo(onBack)
-        "double-pendulum" -> DoublePendulumDemo(onBack)
-        "post-processing" -> PostProcessingDemo(onBack)
-        "custom-mesh" -> CustomMeshDemo(onBack)
-        "shape" -> ShapeDemo(onBack)
-        "reflection-probes" -> ReflectionProbesDemo(onBack)
-        "secondary-camera" -> SecondaryCameraDemo(onBack)
-        "debug-overlay" -> DebugOverlayDemo(onBack)
+        "dynamic-sky" -> DynamicSkyDemo(onBackPress)
+        "multi-model" -> MultiModelDemo(onBackPress)
+        "materials" -> MaterialsDemo(onBackPress)
+        "physics" -> PhysicsDemo(onBackPress)
+        "double-pendulum" -> DoublePendulumDemo(onBackPress)
+        "post-processing" -> PostProcessingDemo(onBackPress)
+        "custom-mesh" -> CustomMeshDemo(onBackPress)
+        "shape" -> ShapeDemo(onBackPress)
+        "reflection-probes" -> ReflectionProbesDemo(onBackPress)
+        "secondary-camera" -> SecondaryCameraDemo(onBackPress)
+        "debug-overlay" -> DebugOverlayDemo(onBackPress)
         // Augmented Reality
-        "ar-placement" -> ARPlacementDemo(onBack)
-        "ar-image" -> ARImageDemo(onBack)
-        "ar-video" -> ARVideoDemo(onBack)
-        "ar-face" -> ARFaceDemo(onBack)
-        "ar-cloud-anchor" -> ARCloudAnchorDemo(onBack)
-        "ar-streetscape" -> ARStreetscapeDemo(onBack)
-        "ar-pose" -> ARPoseDemo(onBack)
-        "ar-rerun" -> ARRerunDemo(onBack)
-        "ar-record-playback" -> ARRecordPlaybackDemo(onBack)
-        "ar-depth-occlusion" -> ARDepthOcclusionDemo(onBack)
-        "ar-instant-placement" -> ARInstantPlacementDemo(onBack)
-        "ar-terrain" -> ARTerrainAnchorDemo(onBack)
-        "ar-rooftop" -> ARRooftopAnchorDemo(onBack)
-        "ar-image-stabilization" -> ARImageStabilizationDemo(onBack)
-        "ar-orbital" -> OrbitalARDemo(onBack)
+        "ar-placement" -> ARPlacementDemo(onBackPress)
+        "ar-image" -> ARImageDemo(onBackPress)
+        "ar-video" -> ARVideoDemo(onBackPress)
+        "ar-face" -> ARFaceDemo(onBackPress)
+        "ar-cloud-anchor" -> ARCloudAnchorDemo(onBackPress)
+        "ar-streetscape" -> ARStreetscapeDemo(onBackPress)
+        "ar-pose" -> ARPoseDemo(onBackPress)
+        "ar-rerun" -> ARRerunDemo(onBackPress)
+        "ar-record-playback" -> ARRecordPlaybackDemo(onBackPress)
+        "ar-depth-occlusion" -> ARDepthOcclusionDemo(onBackPress)
+        "ar-instant-placement" -> ARInstantPlacementDemo(onBackPress)
+        "ar-terrain" -> ARTerrainAnchorDemo(onBackPress)
+        "ar-rooftop" -> ARRooftopAnchorDemo(onBackPress)
+        "ar-image-stabilization" -> ARImageStabilizationDemo(onBackPress)
+        "ar-orbital" -> OrbitalARDemo(onBackPress)
         // Fallback
-        else -> PlaceholderDemo(id = id, onBack = onBack)
+        else -> PlaceholderDemo(id = id, onBack = onBackPress)
     }
 }
 
@@ -88,7 +87,7 @@ fun PlaceholderDemo(id: String, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             AppBar(
-                title = "Demo: $id",
+                title = stringResource(Res.string.demo_title, id),
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
@@ -101,7 +100,7 @@ fun PlaceholderDemo(id: String, onBack: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Demo for '$id' is coming soon!",
+                text = stringResource(Res.string.demo_coming_soon, id),
                 style = MaterialTheme.typography.headlineSmall
             )
         }

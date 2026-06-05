@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">template</string>
+    <string name="app_name">AugmentX</string>
+    <string name="spatial_experience">Spatial Experience</string>
+    <string name="quick_ar_view">Quick AR View</string>
+    <string name="explore_capabilities">Explore the %1$s capabilities</string>
+
+    <!-- Categories -->
+    <string name="category_3d">3D</string>
+    <string name="category_environment">Environment</string>
+    <string name="category_interaction">Interaction</string>
+    <string name="category_content">Content</string>
+    <string name="category_advanced">Advanced</string>
+    <string name="category_ar">AR</string>
+
+    <!-- Demo Screen -->
+    <string name="demo_title">Demo: %1$s</string>
+    <string name="demo_coming_soon">Demo for \'%1$s\' is coming soon!</string>
+
     <string name="hello_developer"> Hello Developer!\n%1$s</string>
     <string name="nice_to_meet_you">Nice to meet you.!</string>
     <string name="welcome">Welcome</string>

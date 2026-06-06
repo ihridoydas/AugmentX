@@ -41,9 +41,12 @@ actual fun SceneView(
     val allUrls = remember(modelUrl, modelUrls, imageTargets) {
         val targets = imageTargets.values.toList()
         (if (modelUrl != null) listOf(modelUrl) else emptyList()) + modelUrls + targets
-    }
+    }.filter { it.isNotBlank() }
     
-    if (allUrls.isEmpty() && videoUrl == null) return
+    if (allUrls.isEmpty() && videoUrl == null) {
+        println("SceneView: No URLs provided, returning.")
+        return
+    }
 
     var isLoading by remember(allUrls, videoUrl) { mutableStateOf(true) }
     var bounds by remember { mutableStateOf(IntRect.Zero) }
@@ -51,16 +54,31 @@ actual fun SceneView(
     
     val container = remember(allUrls, videoUrl, isAR, arMode, trackingImage) {
         (document.createElement("div") as HTMLElement).apply {
-            setAttribute("style", "position:fixed; z-index: 5; pointer-events: auto; display: block; opacity: 0; background: transparent;")
+            setAttribute("style", "position:fixed; z-index: 100; pointer-events: auto; display: block; background: transparent;")
             
             if (isAR && arMode == ARMode.Image) {
+                println("SceneView: Initializing MindAR Image Scene")
                 val mindFile = trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind") ?: "images/targets.mind"
                 
-                val modelEntity = if (modelUrl != null) {
-                    """<a-entity mindar-image-target="targetIndex: 0">
-                        <a-gltf-model src="#arModel" scale="0.5 0.5 0.5" position="0 0 0" rotation="0 0 0"></a-gltf-model>
-                       </a-entity>"""
-                } else ""
+                val modelAssets = mutableListOf<String>()
+                val modelEntities = mutableListOf<String>()
+
+                val targetImages = mutableListOf<String>()
+                trackingImage?.let { targetImages.add(it) }
+                imageTargets.keys.forEach { if (it != trackingImage) targetImages.add(it) }
+
+                targetImages.forEachIndexed { index, path ->
+                    val url = if (path == trackingImage) (modelUrl ?: imageTargets[path]) else imageTargets[path]
+                    if (url != null) {
+                        val id = "targetModel$index"
+                        modelAssets.add("<a-asset-item id=\"$id\" src=\"$url\"></a-asset-item>")
+                        modelEntities.add("""
+                            <a-entity mindar-image-target="targetIndex: $index">
+                                <a-gltf-model src="#$id" scale="0.5 0.5 0.5" position="0 0 0" rotation="0 0 0"></a-gltf-model>
+                            </a-entity>
+                        """.trimIndent())
+                    }
+                }
                 
                 val videoEntity = if (videoUrl != null) {
                     """<a-entity mindar-image-target="targetIndex: 0">
@@ -78,13 +96,13 @@ actual fun SceneView(
                         style="width: 100%; height: 100%; background: transparent;">
                         
                         <a-assets>
-                            ${if (modelUrl != null) "<a-asset-item id=\"arModel\" src=\"$modelUrl\"></a-asset-item>" else ""}
+                            ${modelAssets.joinToString("\n")}
                             ${if (videoUrl != null) "<video id=\"arVideo\" src=\"$videoUrl\" loop=\"true\" crossorigin=\"anonymous\"></video>" else ""}
                         </a-assets>
 
                         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
                         
-                        $modelEntity
+                        ${modelEntities.joinToString("\n")}
                         $videoEntity
                     </a-scene>
                 """.trimIndent()
@@ -92,14 +110,19 @@ actual fun SceneView(
                 isLoading = false
                 onModelLoaded()
             } else {
+                println("SceneView: Initializing model-viewer for URLs: $allUrls")
                 val modelsHtml = allUrls.joinToString("\n") { url ->
                     """
                     <model-viewer 
                         src="$url" 
                         ${if (autoRotate) "auto-rotate" else ""} 
                         camera-controls 
+                        touch-action="pan-y"
+                        shadow-intensity="1"
+                        alt="3D Model"
+                        loading="eager"
                         ${if (isAR) "ar ar-modes=\"webxr scene-viewer quick-look\"" else ""} 
-                        style="width:100%; height:100%; position:absolute; top:0; left:0;">
+                        style="width:100%; height:100%; position:absolute; top:0; left:0; --poster-color: transparent; background: transparent;">
                     </model-viewer>
                     """.trimIndent()
                 }
@@ -117,6 +140,7 @@ actual fun SceneView(
                         val el = mvs.item(i)
                         if (el?.tagName?.lowercase() == "model-viewer") {
                             el.addEventListener("load", { 
+                                println("SceneView: model-viewer loaded")
                                 loadedCount++
                                 if (loadedCount >= allUrls.size) {
                                     isLoading = false
@@ -134,8 +158,12 @@ actual fun SceneView(
 
     // Force show after a few seconds
     LaunchedEffect(allUrls, videoUrl) {
-        kotlinx.coroutines.delay(8000)
-        isLoading = false
+        kotlinx.coroutines.delay(4000)
+        if (isLoading) {
+            println("SceneView: Loading timeout reached, forcing visibility.")
+            isLoading = false
+            onModelLoaded()
+        }
     }
 
     // Synchronize DOM element with Compose state
@@ -146,7 +174,8 @@ actual fun SceneView(
             container.style.top = "${bounds.top / d}px"
             container.style.width = "${bounds.width / d}px"
             container.style.height = "${bounds.height / d}px"
-            container.style.opacity = if (isLoading) "0" else "1"
+            container.style.visibility = "visible"
+            container.style.opacity = "1"
         }
     }
 

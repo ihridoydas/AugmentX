@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
 
@@ -29,7 +30,8 @@ fun ARImageDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-                isAR = true
+                isAR = true,
+                arMode = ARMode.Image
             )
 
             Card(

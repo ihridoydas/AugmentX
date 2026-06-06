@@ -28,7 +28,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+                videoUrl = "https://sceneview.github.io/assets/videos/bitmoji.mp4",
                 isAR = true
             )
 
@@ -39,7 +39,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Play video on a 3D surface in AR.",
+                    text = "Rendering a video plane in Augmented Reality.",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

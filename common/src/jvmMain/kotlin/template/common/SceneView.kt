@@ -18,7 +18,9 @@ actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
     modelUrls: List<String>,
+    videoUrl: String?,
     isAR: Boolean,
+    arMode: ARMode,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
@@ -27,10 +29,10 @@ actual fun SceneView(
         if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
     }
     
-    var isLoading by remember(allUrls) { mutableStateOf(allUrls.isNotEmpty()) }
+    var isLoading by remember(allUrls, videoUrl) { mutableStateOf(allUrls.isNotEmpty() || videoUrl != null) }
     
-    if (allUrls.isNotEmpty()) {
-        LaunchedEffect(allUrls) {
+    if (allUrls.isNotEmpty() || videoUrl != null) {
+        LaunchedEffect(allUrls, videoUrl) {
             delay(1000) // Simulate loading delay for the placeholder
             isLoading = false
             onModelLoaded()
@@ -54,7 +56,7 @@ actual fun SceneView(
                 color = Color(0xFFDAA520),
                 trackColor = Color.Transparent
             )
-        } else if (allUrls.isNotEmpty()) {
+        } else if (allUrls.isNotEmpty() || videoUrl != null) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val centerX = size.width / 2
                 val centerY = size.height / 2

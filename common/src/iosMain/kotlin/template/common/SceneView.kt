@@ -33,7 +33,9 @@ actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
     modelUrls: List<String>,
+    videoUrl: String?,
     isAR: Boolean,
+    arMode: ARMode,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
@@ -53,8 +55,6 @@ actual fun SceneView(
             isCheckingNative = true
             showLoader = true
             try {
-                // For iOS native, we currently only support the first model
-                // due to complexity of merging multiple SCNScenes in this wrapper.
                 val firstUrl = allUrls.first()
                 val bytes = client.get(firstUrl).readRawBytes()
                 val nsData = bytes.usePinned { pinned ->
@@ -139,11 +139,15 @@ actual fun SceneView(
                     view.scene = scene 
                 }
             )
-        } else if (allUrls.isNotEmpty() && !isCheckingNative) {
-            val html = remember(allUrls, isAR, autoRotate) {
+        } else if (allUrls.isNotEmpty() || videoUrl != null) {
+            val html = remember(allUrls, videoUrl, isAR, autoRotate) {
                 val modelsHtml = allUrls.joinToString("\n") { url ->
                     """<model-viewer src="$url" ${if (autoRotate) "auto-rotate" else ""} camera-controls shadow-intensity="1" ${if (isAR) "ar" else ""} style="width:100%; height:100%; position:absolute; top:0; left:0;"></model-viewer>"""
                 }
+                val videoHtml = if (videoUrl != null) {
+                    """<video src="$videoUrl" autoplay loop muted style="width:100%; height:100%; position:absolute; top:0; left:0; object-fit:cover; z-index:-1;"></video>"""
+                } else ""
+                
                 """
                 <!DOCTYPE html>
                 <html>
@@ -158,6 +162,7 @@ actual fun SceneView(
                 </head>
                 <body>
                     <div id="container">
+                        $videoHtml
                         $modelsHtml
                     </div>
                 </body>

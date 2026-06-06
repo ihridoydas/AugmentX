@@ -9,13 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
 
 @Composable
 fun ARFaceDemo(onBack: () -> Unit) {
-    var modelLoaded by remember { mutableStateOf(false) }
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Black,
@@ -28,12 +27,11 @@ fun ARFaceDemo(onBack: () -> Unit) {
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            // Augmented Face demo
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb", // Using fox as placeholder
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb",
                 isAR = true,
-                onModelLoaded = { modelLoaded = true }
+                arMode = ARMode.Face
             )
 
             Card(
@@ -43,7 +41,7 @@ fun ARFaceDemo(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Augmented Faces tracking. Face filters coming soon.",
+                    text = "Augmented Faces tracking enabled. Uses front camera on supported devices.",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

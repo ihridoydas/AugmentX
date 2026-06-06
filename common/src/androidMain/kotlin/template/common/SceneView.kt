@@ -18,6 +18,7 @@ import com.google.ar.core.Config
 import com.google.ar.core.Frame
 import com.google.ar.core.TrackingState
 import com.google.ar.core.AugmentedImage
+import com.google.ar.core.Session
 import dev.romainguy.kotlin.math.Float3
 import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.SceneView as LibSceneView
@@ -48,11 +49,14 @@ fun SceneScope.ARModelInstance(
     buffer: ByteBuffer, 
     scale: Float = 0.5f
 ) {
+
     val modelInstance = remember(buffer) { modelLoader.createModelInstance(buffer) }
     if (modelInstance != null) {
         ModelNode(
             modelInstance = modelInstance,
             scaleToUnits = scale,
+            position = Float3(0f, 0.01f, 0f),
+            rotation = Float3(-90f, 0f, 0f),
             autoAnimate = true
         )
     }
@@ -83,10 +87,10 @@ actual fun SceneView(
     val placedAnchors = remember { mutableStateListOf<Anchor>() }
     var lastFrame by remember { mutableStateOf<Frame?>(null) }
     val detectedImages = remember { mutableStateMapOf<Int, AugmentedImage>() }
+    val sessionState = remember { mutableStateOf<Session?>(null) }
 
     var isLoading by remember { mutableStateOf(false) }
     
-    // Official SceneView Runtime Image Database
     val runtimeDatabase = rememberRuntimeAugmentedImageDatabase()
 
     LaunchedEffect(modelUrl, modelUrls, imageTargets, trackingImage) {
@@ -104,14 +108,13 @@ actual fun SceneView(
                 try {
                     val bytes = client.get(url).readRawBytes()
                     modelBuffers[url] = ByteBuffer.wrap(bytes)
-                    android.util.Log.d("SceneView", "Model loaded: $url")
                 } catch (e: Exception) {
                     android.util.Log.e("SceneView", "Failed to download model: $url", e)
                 }
             }
         }
 
-        // Load Image Bitmaps and register them immediately if database is ready
+        // Load Image Bitmaps
         val imageJobs = allImagePaths.distinct().filter { !imageBitmaps.containsKey(it) }.map { path ->
             launch {
                 try {
@@ -123,9 +126,6 @@ actual fun SceneView(
                     }
                     if (bitmap != null) {
                         imageBitmaps[path] = bitmap
-                        // Also add to runtime database
-                        runtimeDatabase.addImage(path, bitmap, 0.2f)
-                        android.util.Log.d("SceneView", "Image registered: $path")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("SceneView", "Failed to load image: $path", e)
@@ -136,6 +136,17 @@ actual fun SceneView(
         (modelJobs + imageJobs).joinAll()
         isLoading = false
         onModelLoaded()
+    }
+
+    // Register images when session and bitmaps are both ready
+    LaunchedEffect(sessionState.value, imageBitmaps.size) {
+        val session = sessionState.value ?: return@LaunchedEffect
+        imageBitmaps.forEach { (path, bitmap) ->
+            if (!runtimeDatabase.imageNames.contains(path)) {
+                runtimeDatabase.addImage(path, bitmap, 0.2f)
+                android.util.Log.d("SceneView", "Image registered in database: $path")
+            }
+        }
     }
 
     // Video Player
@@ -183,6 +194,7 @@ actual fun SceneView(
                 },
                 onSessionCreated = { session ->
                     runtimeDatabase.bind(session)
+                    sessionState.value = session
                 },
                 onSessionUpdated = { _, frame ->
                     lastFrame = frame
@@ -191,7 +203,7 @@ actual fun SceneView(
                             if (image.trackingState == TrackingState.TRACKING) {
                                 if (!detectedImages.containsKey(image.index)) {
                                     detectedImages[image.index] = image
-                                    android.util.Log.d("SceneView", "Tracking Detected: ${image.name}")
+                                    android.util.Log.d("SceneView", "Image Detected: ${image.name}")
                                 }
                             } else if (image.trackingState == TrackingState.STOPPED) {
                                 detectedImages.remove(image.index)
@@ -228,37 +240,60 @@ actual fun SceneView(
                 // Handle Augmented Images
                 if (arMode == ARMode.Image) {
                     for (image in detectedImages.values) {
-                        val targetModelUrl = if (image.name == "default") modelUrl else imageTargets[image.name]
-                        val buffer = targetModelUrl?.let { modelBuffers[it] }
-
                         val imageWidth = image.extentX.takeIf { it > 0 } ?: 0.2f
                         val imageHeight = image.extentZ.takeIf { it > 0 } ?: (imageWidth / (16f / 9f))
 
                         // 🔹 Force video frame to match image frame size exactly
                         val finalWidth = imageWidth
                         val finalHeight = imageHeight
-                        
-                        if (buffer != null) {
+                        // Check for video target first (prioritize video if URL is provided)
+                        if (videoUrl != null && (image.name == trackingImage || image.name == "images/cute.jpeg")) {
                             AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
-                                val modelInstance = remember(buffer) { modelLoader.createModelInstance(buffer) }
-                                if (modelInstance != null) {
-                                    ModelNode(
-                                        modelInstance = modelInstance,
-                                        scale = Size(finalWidth, finalHeight),
+                                if (mediaPlayer != null) {
+                                    VideoNode(
+                                        player = mediaPlayer,
+//                                        scale = Float3(1f, 1f, 1f),
+//                                        size = Size(finalWidth, finalHeight),
                                         position = Float3(0f, 0.01f, 0f),
                                         rotation = Float3(-90f, 0f, 0f),
-                                        autoAnimate = true
                                     )
+                                }
+                            }
+                        } else {
+                            // Find target model based on image name
+                            val targetModelUrl = if (image.name == trackingImage) modelUrl else imageTargets[image.name]
+                            val buffer = targetModelUrl?.let { modelBuffers[it] }
+
+                            val imageWidth = image.extentX.takeIf { it > 0 } ?: 0.2f
+                            val imageHeight = image.extentZ.takeIf { it > 0 } ?: (imageWidth / (16f / 9f))
+
+                            // 🔹 Force video frame to match image frame size exactly
+                            val finalWidth = imageWidth
+                            val finalHeight = imageHeight
+
+                            if (buffer != null) {
+                                AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
+                                    val modelInstance = remember(buffer) { modelLoader.createModelInstance(buffer) }
+                                    if (modelInstance != null) {
+                                        ModelNode(
+                                            modelInstance = modelInstance,
+                                            scale = Size(finalWidth, finalHeight),
+                                            autoAnimate = true,
+                                            position = Float3(0f, 0.01f, 0f),
+                                            rotation = Float3(-90f, 0f, 0f),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                if (mediaPlayer != null) {
+                if (mediaPlayer != null && arMode != ARMode.Image) {
                     VideoNode(
                         player = mediaPlayer,
-                        position = Float3(0f, 0f, -2f)
+                        position = Float3(0f, 0.01f, 0f),
+                        rotation = Float3(-90f, 0f, 0f),
                     )
                 }
             }
@@ -286,7 +321,9 @@ actual fun SceneView(
                 if (mediaPlayer != null) {
                     VideoNode(
                         player = mediaPlayer,
-                        position = Float3(0f, 0f, -2f)
+                        position = Float3(0f, 0.01f, 0f),
+                        rotation = Float3(-90f, 0f, 0f),
+
                     )
                 }
             }

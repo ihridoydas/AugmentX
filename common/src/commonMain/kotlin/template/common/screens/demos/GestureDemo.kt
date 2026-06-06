@@ -13,15 +13,13 @@ import template.common.SceneView
 import template.common.components.AppBar
 
 @Composable
-fun MovableLightDemo(onBack: () -> Unit) {
-    var lightIntensity by remember { mutableStateOf(1000f) }
-
+fun GestureEditingDemo(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
             AppBar(
-                title = "Movable Light",
+                title = "Gesture Editing",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
@@ -30,27 +28,20 @@ fun MovableLightDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
             )
 
-            Column(
+            Card(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Light Intensity", color = Color.White)
-                        Slider(
-                            value = lightIntensity,
-                            onValueChange = { lightIntensity = it },
-                            valueRange = 0f..5000f
-                        )
-                    }
-                }
+                Text(
+                    text = "Use gestures to move, rotate, and scale the model.",
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         }
     }

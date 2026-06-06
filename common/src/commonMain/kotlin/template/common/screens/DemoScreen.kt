@@ -23,6 +23,11 @@ import template.common.screens.demos.LightingDemo
 import template.common.screens.demos.MovableLightDemo
 import template.common.screens.demos.FogDemo
 import template.common.screens.demos.EnvironmentDemo
+import template.common.screens.demos.ARPlacementDemo
+import template.common.screens.demos.ARFaceDemo
+import template.common.screens.demos.VideoDemo
+import template.common.screens.demos.PhysicsDemo
+import template.common.screens.demos.GestureEditingDemo
 
 import template.common.ui.LanguageDropdown
 import template.common.ui.ThemeToggleButton
@@ -119,14 +124,11 @@ fun PlaceholderDemo(id: String, onBack: () -> Unit) {
 @Composable fun LinesPathsDemo(onBack: () -> Unit) = PlaceholderDemo("lines-paths", onBack)
 @Composable fun ImageDemo(onBack: () -> Unit) = PlaceholderDemo("image", onBack)
 @Composable fun BillboardDemo(onBack: () -> Unit) = PlaceholderDemo("billboard", onBack)
-@Composable fun VideoDemo(onBack: () -> Unit) = PlaceholderDemo("video", onBack)
-@Composable fun GestureEditingDemo(onBack: () -> Unit) = PlaceholderDemo("gesture-editing", onBack)
 @Composable fun CollisionDemo(onBack: () -> Unit) = PlaceholderDemo("collision", onBack)
 @Composable fun ViewNodeDemo(onBack: () -> Unit) = PlaceholderDemo("view-node", onBack)
 @Composable fun DynamicSkyDemo(onBack: () -> Unit) = PlaceholderDemo("dynamic-sky", onBack)
 @Composable fun MultiModelDemo(onBack: () -> Unit) = PlaceholderDemo("multi-model", onBack)
 @Composable fun MaterialsDemo(onBack: () -> Unit) = PlaceholderDemo("materials", onBack)
-@Composable fun PhysicsDemo(onBack: () -> Unit) = PlaceholderDemo("physics", onBack)
 @Composable fun DoublePendulumDemo(onBack: () -> Unit) = PlaceholderDemo("double-pendulum", onBack)
 @Composable fun PostProcessingDemo(onBack: () -> Unit) = PlaceholderDemo("post-processing", onBack)
 @Composable fun CustomMeshDemo(onBack: () -> Unit) = PlaceholderDemo("custom-mesh", onBack)
@@ -134,10 +136,8 @@ fun PlaceholderDemo(id: String, onBack: () -> Unit) {
 @Composable fun ReflectionProbesDemo(onBack: () -> Unit) = PlaceholderDemo("reflection-probes", onBack)
 @Composable fun SecondaryCameraDemo(onBack: () -> Unit) = PlaceholderDemo("secondary-camera", onBack)
 @Composable fun DebugOverlayDemo(onBack: () -> Unit) = PlaceholderDemo("debug-overlay", onBack)
-@Composable fun ARPlacementDemo(onBack: () -> Unit) = PlaceholderDemo("ar-placement", onBack)
 @Composable fun ARImageDemo(onBack: () -> Unit) = PlaceholderDemo("ar-image", onBack)
 @Composable fun ARVideoDemo(onBack: () -> Unit) = PlaceholderDemo("ar-video", onBack)
-@Composable fun ARFaceDemo(onBack: () -> Unit) = PlaceholderDemo("ar-face", onBack)
 @Composable fun ARCloudAnchorDemo(onBack: () -> Unit) = PlaceholderDemo("ar-cloud-anchor", onBack)
 @Composable fun ARStreetscapeDemo(onBack: () -> Unit) = PlaceholderDemo("ar-streetscape", onBack)
 @Composable fun ARPoseDemo(onBack: () -> Unit) = PlaceholderDemo("ar-pose", onBack)

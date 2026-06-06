@@ -13,44 +13,40 @@ import template.common.SceneView
 import template.common.components.AppBar
 
 @Composable
-fun MovableLightDemo(onBack: () -> Unit) {
-    var lightIntensity by remember { mutableStateOf(1000f) }
+fun ARFaceDemo(onBack: () -> Unit) {
+    var modelLoaded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
+        containerColor = Color.Black,
         topBar = {
             AppBar(
-                title = "Movable Light",
+                title = "AR Augmented Faces",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // Augmented Face demo
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF-Binary/Fox.glb", // Using fox as placeholder
+                isAR = true,
+                onModelLoaded = { modelLoaded = true }
             )
 
-            Column(
+            Card(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Light Intensity", color = Color.White)
-                        Slider(
-                            value = lightIntensity,
-                            onValueChange = { lightIntensity = it },
-                            valueRange = 0f..5000f
-                        )
-                    }
-                }
+                Text(
+                    text = "Augmented Faces tracking. Face filters coming soon.",
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         }
     }

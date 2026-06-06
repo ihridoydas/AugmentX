@@ -2,21 +2,25 @@ package template.common
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlin.math.*
 
 @Composable
 actual fun SceneView(
     modifier: Modifier,
-    modelUrl: String?
+    modelUrl: String?,
+    isAR: Boolean,
+    autoRotate: Boolean,
+    skyboxUrl: String?,
+    onModelLoaded: () -> Unit
 ) {
     var isLoading by remember(modelUrl) { mutableStateOf(modelUrl != null) }
     
@@ -24,6 +28,7 @@ actual fun SceneView(
         LaunchedEffect(modelUrl) {
             delay(1000) // Simulate loading delay for the placeholder
             isLoading = false
+            onModelLoaded()
         }
     }
 
@@ -39,7 +44,11 @@ actual fun SceneView(
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (isLoading) {
-            CircularProgressIndicator(color = Color.White)
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = Color(0xFFDAA520),
+                trackColor = Color.Transparent
+            )
         } else {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val centerX = size.width / 2

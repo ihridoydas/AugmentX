@@ -1,7 +1,6 @@
 package template.common
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +31,11 @@ import kotlinx.coroutines.delay
 @Composable
 actual fun SceneView(
     modifier: Modifier,
-    modelUrl: String?
+    modelUrl: String?,
+    isAR: Boolean,
+    autoRotate: Boolean,
+    skyboxUrl: String?,
+    onModelLoaded: () -> Unit
 ) {
     val client = remember { HttpClient(Darwin) }
     var scene by remember { mutableStateOf<SCNScene?>(null) }
@@ -93,6 +96,7 @@ actual fun SceneView(
                     scene = finalScene
                     nativeFailed = false
                     showLoader = false
+                    onModelLoaded()
                 } else {
                     nativeFailed = true
                 }
@@ -113,7 +117,7 @@ actual fun SceneView(
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (!isCheckingNative && !nativeFailed && scene != null) {
+        if (!isCheckingNative && !nativeFailed && scene != null && !isAR) {
             UIKitView(
                 factory = {
                     SCNView().apply {
@@ -123,10 +127,15 @@ actual fun SceneView(
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
-                update = { view -> view.scene = scene }
+                update = { view -> 
+                    view.scene = scene 
+                    if (autoRotate) {
+                        // iOS specific auto-rotate
+                    }
+                }
             )
         } else if (modelUrl != null && !isCheckingNative) {
-            val html = remember(modelUrl) {
+            val html = remember(modelUrl, isAR, autoRotate) {
                 """
                 <!DOCTYPE html>
                 <html>
@@ -140,7 +149,13 @@ actual fun SceneView(
                     </style>
                 </head>
                 <body>
-                    <model-viewer src="$modelUrl" auto-rotate camera-controls shadow-intensity="1" ar></model-viewer>
+                    <model-viewer 
+                        src="$modelUrl" 
+                        ${if (autoRotate) "auto-rotate" else ""} 
+                        camera-controls 
+                        shadow-intensity="1" 
+                        ${if (isAR) "ar" else ""}>
+                    </model-viewer>
                 </body>
                 </html>
             """.trimIndent()
@@ -159,17 +174,11 @@ actual fun SceneView(
         }
 
         if (showLoader && (isCheckingNative || (nativeFailed && modelUrl != null))) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
-                    color = Color(0xFFDAA520),
-                    trackColor = Color.Transparent
-                )
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFDAA520)
-                )
-            }
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = Color(0xFFDAA520),
+                trackColor = Color.Transparent
+            )
         }
     }
 }

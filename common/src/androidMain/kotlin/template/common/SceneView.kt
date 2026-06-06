@@ -1,7 +1,6 @@
 package template.common
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -9,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import io.github.sceneview.SceneView
+import io.github.sceneview.ar.ARSceneView
 import io.github.sceneview.rememberCameraManipulator
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberModelLoader
@@ -23,7 +23,11 @@ import java.nio.ByteBuffer
 @Composable
 actual fun SceneView(
     modifier: Modifier,
-    modelUrl: String?
+    modelUrl: String?,
+    isAR: Boolean,
+    autoRotate: Boolean,
+    skyboxUrl: String?,
+    onModelLoaded: () -> Unit
 ) {
     var isLoading by remember(modelUrl) { mutableStateOf(modelUrl != null) }
     val engine = rememberEngine()
@@ -40,6 +44,7 @@ actual fun SceneView(
                 android.util.Log.e("SceneView", "Failed to download model: $modelUrl", e)
             } finally {
                 isLoading = false
+                onModelLoaded()
             }
         }
     }
@@ -53,36 +58,52 @@ actual fun SceneView(
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        SceneView(
-            modifier = Modifier.fillMaxSize(),
-            engine = engine,
-            modelLoader = modelLoader,
-            cameraManipulator = cameraManipulator,
-            autoFitContent = true
-        ) {
-            modelBuffer.value?.let { buffer ->
-                val modelInstance = remember(buffer) {
-                    modelLoader.createModelInstance(buffer)
+        if (isAR) {
+            ARSceneView(
+                modifier = Modifier.fillMaxSize(),
+                engine = engine,
+                modelLoader = modelLoader,
+                planeRenderer = true,
+                onSessionUpdated = { _, _ ->
+                    // Handle AR session updates
                 }
-                ModelNode(
-                    modelInstance = modelInstance,
-                    scaleToUnits = 1.0f
-                )
+            ) {
+                modelBuffer.value?.let { buffer ->
+                    val modelInstance = remember(buffer) {
+                        modelLoader.createModelInstance(buffer)
+                    }
+                    ModelNode(
+                        modelInstance = modelInstance,
+                        scaleToUnits = 1.0f
+                    )
+                }
+            }
+        } else {
+            SceneView(
+                modifier = Modifier.fillMaxSize(),
+                engine = engine,
+                modelLoader = modelLoader,
+                cameraManipulator = cameraManipulator,
+                autoFitContent = true
+            ) {
+                modelBuffer.value?.let { buffer ->
+                    val modelInstance = remember(buffer) {
+                        modelLoader.createModelInstance(buffer)
+                    }
+                    ModelNode(
+                        modelInstance = modelInstance,
+                        scaleToUnits = 1.0f
+                    )
+                }
             }
         }
 
         if (isLoading && modelUrl != null) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
-                    color = Color(0xFFDAA520),
-                    trackColor = Color.Transparent
-                )
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFDAA520)
-                )
-            }
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = Color(0xFFDAA520),
+                trackColor = Color.Transparent
+            )
         }
     }
 }

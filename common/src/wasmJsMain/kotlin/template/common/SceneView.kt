@@ -1,7 +1,6 @@
 package template.common
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,22 +18,45 @@ import org.w3c.dom.HTMLElement
 @Composable
 actual fun SceneView(
     modifier: Modifier,
-    modelUrl: String?
+    modelUrl: String?,
+    isAR: Boolean,
+    autoRotate: Boolean,
+    skyboxUrl: String?,
+    onModelLoaded: () -> Unit
 ) {
     if (modelUrl == null) return
 
     var isLoading by remember(modelUrl) { mutableStateOf(true) }
     var bounds by remember { mutableStateOf(IntRect.Zero) }
     
-    val container = remember(modelUrl) {
+    val container = remember(modelUrl, isAR, autoRotate) {
         (document.createElement("div") as HTMLElement).apply {
             setAttribute("style", "position:fixed; z-index: 999; pointer-events: auto; display: block; opacity: 0;")
-            innerHTML = "<model-viewer src=\"$modelUrl\" auto-rotate camera-controls style=\"width:100%; height:100%;\"></model-viewer>"
+            innerHTML = """
+                <model-viewer 
+                    src="$modelUrl" 
+                    ${if (autoRotate) "auto-rotate" else ""} 
+                    camera-controls 
+                    ${if (isAR) "ar" else ""}
+                    style="width:100%; height:100%;">
+                </model-viewer>
+            """.trimIndent()
             
             val mv = firstElementChild as? HTMLElement
-            mv?.addEventListener("load", { isLoading = false })
-            mv?.addEventListener("error", { isLoading = false })
+            mv?.addEventListener("load", { 
+                isLoading = false 
+                onModelLoaded()
+            })
+            mv?.addEventListener("error", { 
+                isLoading = false 
+            })
         }
+    }
+
+    // Force show after a few seconds
+    LaunchedEffect(modelUrl) {
+        kotlinx.coroutines.delay(5000)
+        isLoading = false
     }
 
     // Synchronize DOM element with Compose state
@@ -58,17 +80,11 @@ actual fun SceneView(
         contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
-                    color = Color(0xFFDAA520),
-                    trackColor = Color.Transparent
-                )
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color(0xFFDAA520)
-                )
-            }
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = Color(0xFFDAA520),
+                trackColor = Color.Transparent
+            )
         }
 
         DisposableEffect(container) {

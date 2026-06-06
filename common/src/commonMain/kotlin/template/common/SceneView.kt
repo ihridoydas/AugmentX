@@ -19,6 +19,8 @@ expect fun SceneView(
     videoUrl: String? = null,
     isAR: Boolean = false,
     arMode: ARMode = ARMode.Plane,
+    trackingImage: String? = null,
+    imageTargets: Map<String, String> = emptyMap(),
     autoRotate: Boolean = false,
     skyboxUrl: String? = null,
     onModelLoaded: () -> Unit = {}

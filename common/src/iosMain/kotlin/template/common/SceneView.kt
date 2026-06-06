@@ -36,12 +36,15 @@ actual fun SceneView(
     videoUrl: String?,
     isAR: Boolean,
     arMode: ARMode,
+    trackingImage: String?,
+    imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
-    val allUrls = remember(modelUrl, modelUrls) {
-        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    val allUrls = remember(modelUrl, modelUrls, imageTargets) {
+        val targets = imageTargets.values.toList()
+        (if (modelUrl != null) listOf(modelUrl) else emptyList()) + modelUrls + targets
     }
     
     val client = remember { HttpClient(Darwin) }
@@ -55,6 +58,7 @@ actual fun SceneView(
             isCheckingNative = true
             showLoader = true
             try {
+                // For iOS native, we currently only support the first model
                 val firstUrl = allUrls.first()
                 val bytes = client.get(firstUrl).readRawBytes()
                 val nsData = bytes.usePinned { pinned ->

@@ -44,7 +44,15 @@ actual fun SceneView(
             setAttribute("style", "position:fixed; z-index: 999; pointer-events: auto; display: block; opacity: 0;")
             
             val modelsHtml = allUrls.joinToString("\n") { url ->
-                "<model-viewer src=\"$url\" ${if (autoRotate) "auto-rotate" else ""} camera-controls ${if (isAR) "ar" else ""} style=\"width:100%; height:100%; position:absolute; top:0; left:0;\"></model-viewer>"
+                """
+                <model-viewer 
+                    src="$url" 
+                    ${if (autoRotate) "auto-rotate" else ""} 
+                    camera-controls 
+                    ${if (isAR) "ar ar-modes=\"webxr scene-viewer quick-look\"" else ""} 
+                    style="width:100%; height:100%; position:absolute; top:0; left:0;">
+                </model-viewer>
+                """.trimIndent()
             }
             
             val videoHtml = if (videoUrl != null) {

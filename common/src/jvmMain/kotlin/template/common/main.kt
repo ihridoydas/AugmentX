@@ -29,24 +29,33 @@ import androidx.compose.ui.window.application
 import template.common.di.initKoin
 
 fun main() {
-    println("Initializing Koin...")
+    println("Starting Desktop Application...")
+    
+    // Initialize Koin
     try {
         initKoin()
-        println("Koin initialized successfully.")
-    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-        println("Koin initialization failed: ${e.message}")
+    } catch (e: Exception) {
+        println("Koin init failed: ${e.message}")
     }
-    application {
-        Window(onCloseRequest = ::exitApplication, title = "KmpTemplate") {
-            println("Rendering App...")
-            App(
-                onLanguageChange = { code ->
-                    template.common.util.PlatformUtils.changeLanguage(code)
-                },
-                onThemeChange = { isDark ->
-                    template.common.util.PlatformUtils.changeTheme(isDark)
-                },
-            )
+
+    try {
+        application {
+            Window(
+                onCloseRequest = ::exitApplication, 
+                title = "AugmentX"
+            ) {
+                App(
+                    onLanguageChange = { code ->
+                        template.common.util.PlatformUtils.changeLanguage(code)
+                    },
+                    onThemeChange = { isDark ->
+                        template.common.util.PlatformUtils.changeTheme(isDark)
+                    },
+                )
+            }
         }
+    } catch (t: Throwable) {
+        println("FATAL: Application crashed: ${t.message}")
+        t.printStackTrace()
     }
 }

@@ -20,9 +20,30 @@
             top: 0;
             left: 0;
             z-index: 10;
+            pointer-events: none; /* Allow clicks to pass to AR if needed, but we usually want UI on top */
+        }
+        #ComposeTarget > * {
+            pointer-events: auto; /* Re-enable clicks for Compose content */
+        }
+
+        /* MindAR video element style */
+        body > video {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            z-index: 1 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+        }
+
+        .mindar-ui-overlay {
+            z-index: 20 !important;
         }
     </style>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
     <div id="ComposeTarget"></div>

@@ -17,15 +17,20 @@ import kotlin.math.*
 actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
+    modelUrls: List<String>,
     isAR: Boolean,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
-    var isLoading by remember(modelUrl) { mutableStateOf(modelUrl != null) }
+    val allUrls = remember(modelUrl, modelUrls) {
+        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    }
     
-    if (modelUrl != null) {
-        LaunchedEffect(modelUrl) {
+    var isLoading by remember(allUrls) { mutableStateOf(allUrls.isNotEmpty()) }
+    
+    if (allUrls.isNotEmpty()) {
+        LaunchedEffect(allUrls) {
             delay(1000) // Simulate loading delay for the placeholder
             isLoading = false
             onModelLoaded()
@@ -49,7 +54,7 @@ actual fun SceneView(
                 color = Color(0xFFDAA520),
                 trackColor = Color.Transparent
             )
-        } else {
+        } else if (allUrls.isNotEmpty()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val centerX = size.width / 2
                 val centerY = size.height / 2

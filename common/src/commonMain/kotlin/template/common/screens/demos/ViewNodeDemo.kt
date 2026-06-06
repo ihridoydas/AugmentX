@@ -13,25 +13,38 @@ import template.common.SceneView
 import template.common.components.AppBar
 
 @Composable
-fun GeometryDemo(onBack: () -> Unit) {
+fun ViewNodeDemo(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
             AppBar(
-                title = "3D Geometry",
+                title = "View Renderable",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            // In a real implementation, we would use SceneView API to create custom meshes.
-            // Here we show a model that represents complex geometry.
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
             )
+
+            // Compose UI on top of 3D, simulating a ViewNode
+            Card(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Interactive 3D UI", style = MaterialTheme.typography.titleMedium)
+                    Button(onClick = {}) {
+                        Text("Click Me in 3D!")
+                    }
+                }
+            }
 
             Card(
                 modifier = Modifier
@@ -40,7 +53,7 @@ fun GeometryDemo(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Creating 3D shapes (Cubes, Spheres, Custom Meshes).",
+                    text = "Rendering 2D Android Views/Compose in 3D space.",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

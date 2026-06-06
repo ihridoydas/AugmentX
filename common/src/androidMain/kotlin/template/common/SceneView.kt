@@ -24,35 +24,48 @@ import java.nio.ByteBuffer
 actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
+    modelUrls: List<String>,
     isAR: Boolean,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
-    var isLoading by remember(modelUrl) { mutableStateOf(modelUrl != null) }
+    val allUrls = remember(modelUrl, modelUrls) {
+        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    }
+    
+    var loadedCount by remember(allUrls) { mutableStateOf(0) }
+    var isLoading by remember(allUrls) { mutableStateOf(allUrls.isNotEmpty()) }
+    
     val engine = rememberEngine()
     val modelLoader = rememberModelLoader(engine)
     val cameraManipulator = rememberCameraManipulator()
     val client = remember { HttpClient(Android) }
 
-    val modelBuffer = produceState<ByteBuffer?>(null, modelUrl) {
-        if (modelUrl != null) {
+    val modelBuffers = remember(allUrls) { mutableStateListOf<ByteBuffer?>() }
+    
+    LaunchedEffect(allUrls) {
+        modelBuffers.clear()
+        loadedCount = 0
+        isLoading = allUrls.isNotEmpty()
+        
+        allUrls.forEach { url ->
             try {
-                val bytes = client.get(modelUrl).readRawBytes()
-                value = ByteBuffer.wrap(bytes)
+                val bytes = client.get(url).readRawBytes()
+                modelBuffers.add(ByteBuffer.wrap(bytes))
+                loadedCount++
             } catch (e: Exception) {
-                android.util.Log.e("SceneView", "Failed to download model: $modelUrl", e)
-            } finally {
-                isLoading = false
-                onModelLoaded()
+                android.util.Log.e("SceneView", "Failed to download model: $url", e)
             }
         }
+        isLoading = false
+        onModelLoaded()
     }
 
     // Safety timeout for loader
-    LaunchedEffect(modelUrl) {
-        if (modelUrl != null) {
-            delay(8000)
+    LaunchedEffect(allUrls) {
+        if (allUrls.isNotEmpty()) {
+            delay(10000)
             isLoading = false
         }
     }
@@ -64,18 +77,17 @@ actual fun SceneView(
                 engine = engine,
                 modelLoader = modelLoader,
                 planeRenderer = true,
-                onSessionUpdated = { _, _ ->
-                    // Handle AR session updates
-                }
             ) {
-                modelBuffer.value?.let { buffer ->
-                    val modelInstance = remember(buffer) {
-                        modelLoader.createModelInstance(buffer)
+                modelBuffers.forEach { buffer ->
+                    buffer?.let {
+                        val modelInstance = remember(it) {
+                            modelLoader.createModelInstance(it)
+                        }
+                        ModelNode(
+                            modelInstance = modelInstance,
+                            scaleToUnits = 1.0f
+                        )
                     }
-                    ModelNode(
-                        modelInstance = modelInstance,
-                        scaleToUnits = 1.0f
-                    )
                 }
             }
         } else {
@@ -86,19 +98,21 @@ actual fun SceneView(
                 cameraManipulator = cameraManipulator,
                 autoFitContent = true
             ) {
-                modelBuffer.value?.let { buffer ->
-                    val modelInstance = remember(buffer) {
-                        modelLoader.createModelInstance(buffer)
+                modelBuffers.forEach { buffer ->
+                    buffer?.let {
+                        val modelInstance = remember(it) {
+                            modelLoader.createModelInstance(it)
+                        }
+                        ModelNode(
+                            modelInstance = modelInstance,
+                            scaleToUnits = 1.0f
+                        )
                     }
-                    ModelNode(
-                        modelInstance = modelInstance,
-                        scaleToUnits = 1.0f
-                    )
                 }
             }
         }
 
-        if (isLoading && modelUrl != null) {
+        if (isLoading && allUrls.isNotEmpty()) {
             LinearProgressIndicator(
                 modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
                 color = Color(0xFFDAA520),

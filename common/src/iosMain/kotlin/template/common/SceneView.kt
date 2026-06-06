@@ -32,23 +32,31 @@ import kotlinx.coroutines.delay
 actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
+    modelUrls: List<String>,
     isAR: Boolean,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
+    val allUrls = remember(modelUrl, modelUrls) {
+        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    }
+    
     val client = remember { HttpClient(Darwin) }
     var scene by remember { mutableStateOf<SCNScene?>(null) }
     var isCheckingNative by remember { mutableStateOf(false) }
     var nativeFailed by remember { mutableStateOf(false) }
-    var showLoader by remember(modelUrl) { mutableStateOf(modelUrl != null) }
+    var showLoader by remember(allUrls) { mutableStateOf(allUrls.isNotEmpty()) }
 
-    LaunchedEffect(modelUrl) {
-        if (modelUrl != null) {
+    LaunchedEffect(allUrls) {
+        if (allUrls.isNotEmpty()) {
             isCheckingNative = true
             showLoader = true
             try {
-                val bytes = client.get(modelUrl).readRawBytes()
+                // For iOS native, we currently only support the first model
+                // due to complexity of merging multiple SCNScenes in this wrapper.
+                val firstUrl = allUrls.first()
+                val bytes = client.get(firstUrl).readRawBytes()
                 val nsData = bytes.usePinned { pinned ->
                     NSData.dataWithBytes(pinned.addressOf(0), bytes.size.toULong())
                 }
@@ -109,9 +117,9 @@ actual fun SceneView(
     }
 
     // Safety timeout for loader
-    LaunchedEffect(modelUrl) {
-        if (modelUrl != null) {
-            delay(8000)
+    LaunchedEffect(allUrls) {
+        if (allUrls.isNotEmpty()) {
+            delay(10000)
             showLoader = false
         }
     }
@@ -129,13 +137,13 @@ actual fun SceneView(
                 modifier = Modifier.fillMaxSize(),
                 update = { view -> 
                     view.scene = scene 
-                    if (autoRotate) {
-                        // iOS specific auto-rotate
-                    }
                 }
             )
-        } else if (modelUrl != null && !isCheckingNative) {
-            val html = remember(modelUrl, isAR, autoRotate) {
+        } else if (allUrls.isNotEmpty() && !isCheckingNative) {
+            val html = remember(allUrls, isAR, autoRotate) {
+                val modelsHtml = allUrls.joinToString("\n") { url ->
+                    """<model-viewer src="$url" ${if (autoRotate) "auto-rotate" else ""} camera-controls shadow-intensity="1" ${if (isAR) "ar" else ""} style="width:100%; height:100%; position:absolute; top:0; left:0;"></model-viewer>"""
+                }
                 """
                 <!DOCTYPE html>
                 <html>
@@ -145,17 +153,13 @@ actual fun SceneView(
                     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
                     <style>
                         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; overflow: hidden; }
-                        model-viewer { width: 100%; height: 100%; background-color: black; }
+                        #container { width: 100%; height: 100%; position: relative; }
                     </style>
                 </head>
                 <body>
-                    <model-viewer 
-                        src="$modelUrl" 
-                        ${if (autoRotate) "auto-rotate" else ""} 
-                        camera-controls 
-                        shadow-intensity="1" 
-                        ${if (isAR) "ar" else ""}>
-                    </model-viewer>
+                    <div id="container">
+                        $modelsHtml
+                    </div>
                 </body>
                 </html>
             """.trimIndent()
@@ -173,7 +177,7 @@ actual fun SceneView(
             }
         }
 
-        if (showLoader && (isCheckingNative || (nativeFailed && modelUrl != null))) {
+        if (showLoader && (isCheckingNative || (nativeFailed && allUrls.isNotEmpty()))) {
             LinearProgressIndicator(
                 modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
                 color = Color(0xFFDAA520),

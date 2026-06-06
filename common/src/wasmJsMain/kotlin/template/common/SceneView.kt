@@ -19,43 +19,48 @@ import org.w3c.dom.HTMLElement
 actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
+    modelUrls: List<String>,
     isAR: Boolean,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
-    if (modelUrl == null) return
+    val allUrls = remember(modelUrl, modelUrls) {
+        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    }
+    
+    if (allUrls.isEmpty()) return
 
-    var isLoading by remember(modelUrl) { mutableStateOf(true) }
+    var isLoading by remember(allUrls) { mutableStateOf(true) }
     var bounds by remember { mutableStateOf(IntRect.Zero) }
     
-    val container = remember(modelUrl, isAR, autoRotate) {
+    val container = remember(allUrls, isAR, autoRotate) {
         (document.createElement("div") as HTMLElement).apply {
             setAttribute("style", "position:fixed; z-index: 999; pointer-events: auto; display: block; opacity: 0;")
-            innerHTML = """
-                <model-viewer 
-                    src="$modelUrl" 
-                    ${if (autoRotate) "auto-rotate" else ""} 
-                    camera-controls 
-                    ${if (isAR) "ar" else ""}
-                    style="width:100%; height:100%;">
-                </model-viewer>
-            """.trimIndent()
             
-            val mv = firstElementChild as? HTMLElement
-            mv?.addEventListener("load", { 
-                isLoading = false 
-                onModelLoaded()
-            })
-            mv?.addEventListener("error", { 
-                isLoading = false 
-            })
+            val modelsHtml = allUrls.joinToString("\n") { url ->
+                "<model-viewer src=\"$url\" ${if (autoRotate) "auto-rotate" else ""} camera-controls ${if (isAR) "ar" else ""} style=\"width:100%; height:100%; position:absolute; top:0; left:0;\"></model-viewer>"
+            }
+            
+            innerHTML = modelsHtml
+            
+            val mvs = children
+            var loadedCount = 0
+            for (i in 0 until mvs.length) {
+                mvs.item(i)?.addEventListener("load", { 
+                    loadedCount++
+                    if (loadedCount >= allUrls.size) {
+                        isLoading = false
+                        onModelLoaded()
+                    }
+                })
+            }
         }
     }
 
     // Force show after a few seconds
-    LaunchedEffect(modelUrl) {
-        kotlinx.coroutines.delay(5000)
+    LaunchedEffect(allUrls) {
+        kotlinx.coroutines.delay(8000)
         isLoading = false
     }
 

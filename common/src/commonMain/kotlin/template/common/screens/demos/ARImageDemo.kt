@@ -49,71 +49,47 @@ fun ARImageDemo(onBack: () -> Unit) {
                 imageTargets = imageTargetsMap
             )
 
-            // "What to scan" guide
+            // Simplified Bottom Guide
             Surface(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(16.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(24.dp)
                     .clickable { showGuide = !showGuide },
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                shape = RoundedCornerShape(16.dp),
-                tonalElevation = 4.dp
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                if (showGuide) {
-                    Column(
-                        modifier = Modifier.padding(16.dp).width(200.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Point at this image",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        // Reference Preview
-                        Box(
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.LightGray),
-                            contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (showGuide) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("Cute Chibi", color = Color.DarkGray, fontSize = 12.sp)
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color.Gray),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Chibi", color = Color.White, fontSize = 10.sp)
+                            }
+                            Text(
+                                text = "Point at cute.jpeg to see the Astronaut",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
+                    } else {
                         Text(
-                            text = "The Astronaut will appear on top of the cute.jpeg character.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Tap for tracking guide",
+                            color = Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.labelMedium
                         )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Show target guide", style = MaterialTheme.typography.labelMedium)
                     }
                 }
-            }
-
-            // Bottom Instructions
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))
-            ) {
-                Text(
-                    text = "Ensure the image is well-lit and move the camera slowly.",
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 14.sp
-                )
             }
         }
     }

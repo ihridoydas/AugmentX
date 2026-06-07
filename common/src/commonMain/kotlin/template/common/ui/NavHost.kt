@@ -28,6 +28,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -42,7 +43,7 @@ import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
 
 @Composable
-fun MainAnimationNavHost() {
+fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) {
     val backStack = remember { mutableStateListOf<ScreenDestinations>(ScreenDestinations.HomeScreen) }
 
     val navigator = remember {
@@ -56,6 +57,12 @@ fun MainAnimationNavHost() {
                     backStack.removeAt(backStack.size - 1)
                 }
             }
+        }
+    }
+
+    LaunchedEffect(onBackPressedRegister) {
+        onBackPressedRegister?.invoke {
+            navigator.goBack()
         }
     }
 

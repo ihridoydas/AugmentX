@@ -16,8 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.browser.document
+import org.w3c.dom.HTMLElement
 
-// CORRECT: String parameters in @JsFun for Wasm must be handled as JS types
 @JsFun("(mindFile, htmlContent) => window.startARSession(mindFile, htmlContent)")
 external fun callStartWebAR(mindFile: String, htmlContent: String)
 
@@ -43,6 +43,27 @@ actual fun SceneView(
     if (allUrls.isEmpty() && videoUrl == null) return
 
     var arStarted by remember { mutableStateOf(false) }
+
+    // Standard 3D Viewer Logic (Non-AR)
+    if (!isAR || arMode != ARMode.Image) {
+        val container = remember { (document.createElement("div") as HTMLElement) }
+        LaunchedEffect(allUrls) {
+            container.setAttribute("style", "position:fixed; z-index: 5; width:100%; height:100%; top:0; left:0; background:transparent;")
+            container.innerHTML = allUrls.joinToString("") { url ->
+                "<model-viewer src=\"$url\" camera-controls touch-action=\"pan-y\" style=\"width:100%; height:100%; background:transparent;\"></model-viewer>"
+            }
+            onModelLoaded()
+        }
+        DisposableEffect(container) {
+            val arContainer = document.getElementById("ARContainer") as? HTMLElement
+            arContainer?.appendChild(container)
+            arContainer?.style?.display = "block"
+            onDispose { 
+                arContainer?.removeChild(container)
+                arContainer?.style?.display = "none"
+            }
+        }
+    }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (isAR && arMode == ARMode.Image && !arStarted) {
@@ -70,8 +91,7 @@ actual fun SceneView(
                             mindar-image="imageTargetSrc: $mindFile; autoStart: true; uiScanning: no; uiLoading: no;" 
                             embedded="false"
                             background="transparent: true"
-                            loading-screen="enabled: false"
-                            renderer="alpha: true; colorManagement: true; antialias: true;"
+                            renderer="alpha: true; colorManagement: true;"
                             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
                             style="width: 100vw; height: 100vh; background: transparent;">
                             <a-assets>${modelAssets.joinToString("")}</a-assets>

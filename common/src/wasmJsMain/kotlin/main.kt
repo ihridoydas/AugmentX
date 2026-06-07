@@ -22,15 +22,16 @@
 * SOFTWARE.
 *
 */
+@file:OptIn(ExperimentalComposeUiApi::class, ExperimentalWasmJsInterop::class)
 package template.common
 
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import template.common.di.initKoin
 import template.common.util.PlatformUtils
 
-@OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     println("Web App: main() starting...")
     try {
@@ -57,6 +58,26 @@ fun main() {
             onThemeChange = { isDark ->
                 PlatformUtils.changeTheme(isDark)
             },
+            onBackPressedRegister = { onBack ->
+                setupKmpBridge {
+                    hideWebBackButton()
+                    onBack()
+                }
+            },
         )
     }
 }
+
+fun setupKmpBridge(onBack: () -> Unit) {
+    initKmpBridge()
+    setOnBackPressed(onBack)
+}
+
+@JsFun("() => { if (!window.kmpBridge) window.kmpBridge = {}; }")
+external fun initKmpBridge()
+
+@JsFun("(onBack) => { window.kmpBridge.onBackPressed = onBack; }")
+external fun setOnBackPressed(onBack: () -> Unit)
+
+@JsFun("() => { const btn = document.getElementById('BackButton'); if (btn) btn.style.display = 'none'; }")
+external fun hideWebBackButton()

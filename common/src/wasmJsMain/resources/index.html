@@ -4,20 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AugmentX AR</title>
-    <!-- V19: Instant Camera Reveal -->
+
     <style>
         html, body {
-            width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             background-color: transparent !important;
         }
 
         #ComposeTarget {
-            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
-            z-index: 10; pointer-events: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+
+            z-index: 10;
+            pointer-events: none;
+
             background: transparent !important;
             transition: opacity 0.4s ease-in-out;
         }
-        #ComposeTarget > * { pointer-events: auto; }
+
+        #ComposeTarget > * {
+            pointer-events: auto;
+        }
 
         /* When AR is active, hide UI by default to show camera */
         body.ar-active #ComposeTarget {
@@ -32,76 +46,229 @@
         }
 
         #ARContainer {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 1; display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+
+            width: 100vw;
+            height: 100vh;
+
+            z-index: 1;
+            display: none;
         }
 
         #LogContainer {
-            position: fixed; bottom: 0; left: 0; width: 100%; max-height: 80px;
-            background: rgba(0,0,0,0.5); color: #0f0; font-family: monospace; font-size: 10px;
-            overflow-y: auto; z-index: 1000; pointer-events: none; padding: 5px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+
+            width: 100%;
+            max-height: 80px;
+
+            background: rgba(0,0,0,0.5);
+            color: #0f0;
+
+            font-family: monospace;
+            font-size: 10px;
+
+            overflow-y: auto;
+
+            z-index: 1000;
+
+            pointer-events: none;
+
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        /* NEW: BACK BUTTON */
+
+        #BackButton {
+            position: fixed;
+
+            top: 12px;
+            left: 12px;
+
+            z-index: 9999;
+
+            padding: 10px 16px;
+
+            border: none;
+            border-radius: 8px;
+
+            background: rgba(0,0,0,0.55);
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+
+            pointer-events: auto;
+
+            display: none; /* Initially hidden */
         }
 
         video {
-            position: fixed !important; top: 0; left: 0;
-            width: 100vw !important; height: 100vh !important;
-            object-fit: cover !important; z-index: 0 !important;
+            position: fixed !important;
+            top: 0;
+            left: 0;
+
+            width: 100vw !important;
+            height: 100vh !important;
+
+            object-fit: cover !important;
+
+            z-index: 0 !important;
         }
 
         canvas.a-canvas {
-            position: fixed !important; top: 0; left: 0;
-            width: 100vw !important; height: 100vh !important;
+            position: fixed !important;
+            top: 0;
+            left: 0;
+
+            width: 100vw !important;
+            height: 100vh !important;
+
             z-index: 1 !important;
         }
     </style>
+
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
-<body>
-    <div id="LogContainer">V19: Initializing...<br></div>
-    <div id="ARContainer"></div>
-    <div id="ComposeTarget"></div>
 
-    <script>
-        function screenLog(msg) {
-            const log = document.getElementById("LogContainer");
-            log.innerHTML += "> " + msg + "<br>";
-            log.scrollTop = log.scrollHeight;
+<body>
+
+<!-- NEW: BACK BUTTON -->
+<button id="BackButton" onclick="onBackPressed()">
+    ← Back
+</button>
+
+<div id="LogContainer">
+    V19: Initializing...<br>
+</div>
+
+<div id="ARContainer"></div>
+
+<div id="ComposeTarget"></div>
+
+<script>
+
+    function screenLog(msg) {
+        const log =
+            document.getElementById("LogContainer");
+
+        log.innerHTML +=
+            "> " + msg + "<br>";
+
+        log.scrollTop =
+            log.scrollHeight;
+    }
+
+    /* NEW: BACK HANDLER */
+
+    function onBackPressed() {
+
+        screenLog("Back button pressed");
+
+        // Hide back button when returning from AR
+        document.getElementById("BackButton").style.display = "none";
+
+        try {
+
+            if (
+                window.kmpBridge &&
+                typeof window.kmpBridge.onBackPressed === "function"
+            ) {
+                window.kmpBridge.onBackPressed();
+                return;
+            }
+
+        } catch (e) {
+            console.error(e);
         }
 
-        // Global click listener to toggle UI visibility during AR
-        document.addEventListener('click', (e) => {
-            if (document.body.classList.contains('ar-active')) {
-                // If we clicked a UI element (like back button), don't toggle
-                if (e.target.closest('#ComposeTarget > *')) return;
+        if (history.length > 1) {
+            history.back();
+        }
+    }
 
-                document.body.classList.toggle('show-ui');
-                const isShowing = document.body.classList.contains('show-ui');
-                screenLog(isShowing ? "UI Revealed" : "UI Hidden (Camera Focused)");
+    // Global click listener to toggle UI visibility during AR
+
+    document.addEventListener('click', (e) => {
+
+        if (e.target.id === "BackButton") {
+            return;
+        }
+
+        if (document.body.classList.contains('ar-active')) {
+
+            if (e.target.closest('#ComposeTarget > *')) {
+                return;
             }
-        });
 
-        window.startARSession = function(mindFile, htmlContent) {
-            screenLog("V19 startARSession");
+            document.body.classList.toggle('show-ui');
 
-            // 1. INSTANTLY mark as active to hide white background
-            document.body.classList.add("ar-active");
-            document.body.classList.remove("show-ui");
+            const isShowing =
+                document.body.classList.contains('show-ui');
 
-            const container = document.getElementById("ARContainer");
-            container.style.display = "block";
-            container.innerHTML = htmlContent;
+            screenLog(
+                isShowing
+                    ? "UI Revealed"
+                    : "UI Hidden (Camera Focused)"
+            );
+        }
+    });
 
-            const sceneEl = container.querySelector('a-scene');
-            sceneEl.addEventListener('arReady', () => screenLog("MindAR Ready"));
+    window.startARSession = function(
+        mindFile,
+        htmlContent
+    ) {
 
-            // 2. Continuous transparency force for the Compose canvas
-            setInterval(() => {
-                const canvases = document.querySelectorAll('#ComposeTarget canvas');
-                canvases.forEach(c => c.style.backgroundColor = "transparent");
-            }, 500);
-        };
-    </script>
-    <script src="common.js"></script>
+        screenLog("V19 startARSession");
+
+        document.body.classList.add("ar-active");
+        document.body.classList.remove("show-ui");
+
+        // Show back button when AR starts
+        document.getElementById("BackButton").style.display = "block";
+
+        const container =
+            document.getElementById("ARContainer");
+
+        container.style.display = "block";
+        container.innerHTML = htmlContent;
+
+        const sceneEl =
+            container.querySelector('a-scene');
+
+        if (sceneEl) {
+
+            sceneEl.addEventListener(
+                'arReady',
+                () => screenLog("MindAR Ready")
+            );
+        }
+
+        setInterval(() => {
+
+            const canvases =
+                document.querySelectorAll(
+                    '#ComposeTarget canvas'
+                );
+
+            canvases.forEach(c => {
+                c.style.backgroundColor =
+                    "transparent";
+            });
+
+        }, 500);
+    };
+
+</script>
+
+<script src="common.js"></script>
+
 </body>
 </html>

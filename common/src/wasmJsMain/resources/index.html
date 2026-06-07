@@ -2,61 +2,114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AugmentX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AugmentX AR</title>
+    <!-- V12: Forced Transparency -->
     <style>
         html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #000;
+            width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+            background: transparent !important;
+            background-color: transparent !important;
         }
+
         #ComposeTarget {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1; /* Lower z-index so models can be on top if needed */
-            pointer-events: none;
-        }
-        #ComposeTarget > * {
-            pointer-events: auto;
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            z-index: 10; pointer-events: none;
+            background: transparent !important;
         }
 
-        /* MindAR video element style */
-        body > video {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            z-index: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
+        /* Force Compose canvas to be transparent */
+        #ComposeTarget canvas {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        #ComposeTarget > * { pointer-events: auto; }
+
+        #ARContainer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 1; display: none;
+            background: transparent !important;
+        }
+
+        #LogContainer {
+            position: fixed; bottom: 0; left: 0; width: 100%; max-height: 80px;
+            background: rgba(0,0,0,0.5); color: #0f0; font-family: monospace; font-size: 10px;
+            overflow-y: auto; z-index: 1000; pointer-events: none; padding: 5px;
+        }
+
+        /* Video and Canvas from MindAR */
+        video {
+            position: fixed !important; top: 0; left: 0;
+            width: 100vw !important; height: 100vh !important;
             object-fit: cover !important;
+            z-index: 1 !important;
+            display: block !important;
         }
 
-        .mindar-ui-overlay {
-            z-index: 200 !important;
-        }
-
-        model-viewer {
-            display: block;
-            width: 100%;
-            height: 100%;
-            background-color: transparent;
+        canvas.a-canvas {
+            position: fixed !important; top: 0; left: 0;
+            width: 100vw !important; height: 100vh !important;
+            z-index: 2 !important;
+            background: transparent !important;
+            display: block !important;
         }
     </style>
-    <!-- Use specific version for stability -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
+    <button id="ToggleUI" onclick="toggleCompose()" style="position: fixed; top: 10px; right: 10px; z-index: 10002; padding: 10px; background: orange;">TOGGLE UI</button>
+    <div id="LogContainer">AugmentX: AR Ready<br></div>
+    <div id="ARContainer"></div>
     <div id="ComposeTarget"></div>
+
     <script>
-        console.log("Web page loaded. model-viewer script included.");
+        function toggleCompose() {
+            const el = document.getElementById("ComposeTarget");
+            el.style.opacity = el.style.opacity === "0" ? "1" : "0";
+        }
+        function screenLog(msg) {
+            const log = document.getElementById("LogContainer");
+            log.innerHTML += "> " + msg + "<br>";
+            log.scrollTop = log.scrollHeight;
+        }
+
+        window.startARSession = function(mindFile, htmlContent) {
+            console.log("V12 startARSession");
+
+            // AUTOMATICALLY force transparency on everything
+            const clear = "transparent";
+            document.documentElement.style.background = clear;
+            document.body.style.background = clear;
+
+            const composeTarget = document.getElementById("ComposeTarget");
+            if (composeTarget) {
+                composeTarget.style.background = clear;
+                // Target the internal Compose canvas
+                const canvases = composeTarget.querySelectorAll('canvas');
+                canvases.forEach(c => {
+                    c.style.background = clear;
+                    c.style.backgroundColor = clear;
+                });
+            }
+
+            const container = document.getElementById("ARContainer");
+            container.style.display = "block";
+            container.innerHTML = htmlContent;
+
+            const sceneEl = container.querySelector('a-scene');
+            sceneEl.addEventListener('arReady', () => screenLog("MindAR Ready"));
+
+            const checkVideo = setInterval(() => {
+                const video = document.querySelector('video');
+                if (video) {
+                    video.style.zIndex = "1";
+                    video.play().catch(e => console.log(e));
+                    clearInterval(checkVideo);
+                }
+            }, 500);
+        };
     </script>
     <script src="common.js"></script>
 </body>

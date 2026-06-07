@@ -31,16 +31,24 @@ fun ARImageDemo(onBack: () -> Unit) {
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent, // Essential for Web camera visibility
+        containerColor = Color.Transparent, // Forced transparency
+        contentColor = MaterialTheme.colorScheme.onSurface,
         topBar = {
-            AppBar(
-                title = "AR Image Mapping",
-                navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNav = onBack,
-            )
+            Box(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
+                AppBar(
+                    title = "AR Image Mapping",
+                    navIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                    onNav = onBack,
+                )
+            }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(Color.Transparent)
+        ) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 isAR = true,

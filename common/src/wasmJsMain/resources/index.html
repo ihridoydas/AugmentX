@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AugmentX AR</title>
-    <!-- V12: Forced Transparency -->
+    <!-- V19: Instant Camera Reveal -->
     <style>
         html, body {
             width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
-            background: transparent !important;
             background-color: transparent !important;
         }
 
@@ -16,20 +15,25 @@
             width: 100%; height: 100%; position: absolute; top: 0; left: 0;
             z-index: 10; pointer-events: none;
             background: transparent !important;
+            transition: opacity 0.4s ease-in-out;
         }
-
-        /* Force Compose canvas to be transparent */
-        #ComposeTarget canvas {
-            background: transparent !important;
-            background-color: transparent !important;
-        }
-
         #ComposeTarget > * { pointer-events: auto; }
+
+        /* When AR is active, hide UI by default to show camera */
+        body.ar-active #ComposeTarget {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* When user wants to see UI during AR */
+        body.ar-active.show-ui #ComposeTarget {
+            opacity: 1;
+            pointer-events: auto;
+        }
 
         #ARContainer {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 1; display: none;
-            background: transparent !important;
         }
 
         #LogContainer {
@@ -38,61 +42,51 @@
             overflow-y: auto; z-index: 1000; pointer-events: none; padding: 5px;
         }
 
-        /* Video and Canvas from MindAR */
         video {
             position: fixed !important; top: 0; left: 0;
             width: 100vw !important; height: 100vh !important;
-            object-fit: cover !important;
-            z-index: 1 !important;
-            display: block !important;
+            object-fit: cover !important; z-index: 0 !important;
         }
 
         canvas.a-canvas {
             position: fixed !important; top: 0; left: 0;
             width: 100vw !important; height: 100vh !important;
-            z-index: 2 !important;
-            background: transparent !important;
-            display: block !important;
+            z-index: 1 !important;
         }
     </style>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
-    <button id="ToggleUI" onclick="toggleCompose()" style="position: fixed; top: 10px; right: 10px; z-index: 10002; padding: 10px; background: orange;">TOGGLE UI</button>
-    <div id="LogContainer">AugmentX: AR Ready<br></div>
+    <div id="LogContainer">V19: Initializing...<br></div>
     <div id="ARContainer"></div>
     <div id="ComposeTarget"></div>
 
     <script>
-        function toggleCompose() {
-            const el = document.getElementById("ComposeTarget");
-            el.style.opacity = el.style.opacity === "0" ? "1" : "0";
-        }
         function screenLog(msg) {
             const log = document.getElementById("LogContainer");
             log.innerHTML += "> " + msg + "<br>";
             log.scrollTop = log.scrollHeight;
         }
 
-        window.startARSession = function(mindFile, htmlContent) {
-            console.log("V12 startARSession");
+        // Global click listener to toggle UI visibility during AR
+        document.addEventListener('click', (e) => {
+            if (document.body.classList.contains('ar-active')) {
+                // If we clicked a UI element (like back button), don't toggle
+                if (e.target.closest('#ComposeTarget > *')) return;
 
-            // AUTOMATICALLY force transparency on everything
-            const clear = "transparent";
-            document.documentElement.style.background = clear;
-            document.body.style.background = clear;
-
-            const composeTarget = document.getElementById("ComposeTarget");
-            if (composeTarget) {
-                composeTarget.style.background = clear;
-                // Target the internal Compose canvas
-                const canvases = composeTarget.querySelectorAll('canvas');
-                canvases.forEach(c => {
-                    c.style.background = clear;
-                    c.style.backgroundColor = clear;
-                });
+                document.body.classList.toggle('show-ui');
+                const isShowing = document.body.classList.contains('show-ui');
+                screenLog(isShowing ? "UI Revealed" : "UI Hidden (Camera Focused)");
             }
+        });
+
+        window.startARSession = function(mindFile, htmlContent) {
+            screenLog("V19 startARSession");
+
+            // 1. INSTANTLY mark as active to hide white background
+            document.body.classList.add("ar-active");
+            document.body.classList.remove("show-ui");
 
             const container = document.getElementById("ARContainer");
             container.style.display = "block";
@@ -101,13 +95,10 @@
             const sceneEl = container.querySelector('a-scene');
             sceneEl.addEventListener('arReady', () => screenLog("MindAR Ready"));
 
-            const checkVideo = setInterval(() => {
-                const video = document.querySelector('video');
-                if (video) {
-                    video.style.zIndex = "1";
-                    video.play().catch(e => console.log(e));
-                    clearInterval(checkVideo);
-                }
+            // 2. Continuous transparency force for the Compose canvas
+            setInterval(() => {
+                const canvases = document.querySelectorAll('#ComposeTarget canvas');
+                canvases.forEach(c => c.style.backgroundColor = "transparent");
             }, 500);
         };
     </script>

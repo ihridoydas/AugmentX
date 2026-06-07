@@ -29,38 +29,31 @@ fun ARImageDemo(onBack: () -> Unit) {
         "images/cute.jpeg" to "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
     )
     
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent, // Forced transparency
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        topBar = {
-            Box(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+        SceneView(
+            modifier = Modifier.fillMaxSize(),
+            isAR = true,
+            arMode = ARMode.Image,
+            imageTargets = imageTargetsMap,
+            trackingImage = "images/cute.jpeg"
+        )
+
+        // Overlay UI
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f))) {
                 AppBar(
                     title = "AR Image Mapping",
                     navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                     onNav = onBack,
                 )
             }
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .background(Color.Transparent)
-        ) {
-            SceneView(
-                modifier = Modifier.fillMaxSize(),
-                isAR = true,
-                arMode = ARMode.Image,
-                imageTargets = imageTargetsMap,
-                trackingImage = "images/cute.jpeg"
-            )
+            
+            Spacer(modifier = Modifier.weight(1f))
 
             // Simplified Bottom Guide
             Surface(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.CenterHorizontally)
                     .padding(24.dp)
                     .clickable { showGuide = !showGuide },
                 color = Color.Black.copy(alpha = 0.7f),

@@ -91,32 +91,21 @@
             box-sizing: border-box;
         }
 
-        /* NEW: BACK BUTTON */
-
         #BackButton {
             position: fixed;
-
             top: 12px;
             left: 12px;
-
             z-index: 9999;
-
             padding: 10px 16px;
-
             border: none;
             border-radius: 8px;
-
             background: rgba(0,0,0,0.55);
             color: white;
-
             font-size: 16px;
             font-weight: bold;
-
             cursor: pointer;
-
             pointer-events: auto;
-
-            display: none; /* Initially hidden */
+            display: none;
         }
 
         /* Background Camera Feed ONLY */
@@ -124,62 +113,64 @@
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-
             width: 100vw !important;
             height: 100dvh !important;
-
             object-fit: cover !important;
-
             z-index: 0 !important;
             margin: 0 !important;
         }
 
         /* AR Content Video */
         #arVideo {
-            display: none; /* Hide the asset source element */
+            display: none;
         }
 
         canvas.a-canvas {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-
             width: 100vw !important;
             height: 100dvh !important;
-
             z-index: 1 !important;
             margin: 0 !important;
         }
     </style>
 
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js" crossorigin="anonymous"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 
 <body>
 
-<!-- NEW: BACK BUTTON -->
 <button id="BackButton" onclick="onBackPressed()">
     ← Back
 </button>
 
 <div id="LogContainer">
-    V29: Initializing...<br>
+    Initializing...<br>
 </div>
 
 <div id="ARContainer"></div>
 <div id="ViewerContainer"></div>
-
 <div id="ComposeTarget"></div>
 
 <script>
+    // GLOBAL ERROR SUPPRESSOR - Added at the very top
+    let isStoppingAR = false;
+    window.addEventListener('error', (e) => {
+        if (isStoppingAR) {
+            console.log("Suppressed background error during AR cleanup");
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return true;
+        }
+    }, true);
 
     function screenLog(msg) {
         try {
             const log = document.getElementById("LogContainer");
             if (!log) return;
-
             log.innerHTML += "> " + msg + "<br>";
             log.scrollTop = log.scrollHeight;
             console.log("LOG: " + msg);
@@ -188,41 +179,20 @@
         }
     }
 
-    screenLog("V31 Initializing...");
-
-    // Diagnostic check for model-viewer
-    window.addEventListener('load', () => {
-        setTimeout(() => {
-            const mv = document.createElement('model-viewer');
-            if (mv.constructor === HTMLElement) {
-                screenLog("Model Viewer: Library NOT recognized (Check script)");
-            } else {
-                screenLog("Model Viewer: Library Loaded OK");
-            }
-        }, 2000);
-    });
-
-    /* NEW: BACK HANDLER */
+    screenLog("V47 Initializing...");
 
     function onBackPressed() {
-
-        screenLog("Back button pressed");
-
-        // If in AR mode, show the Compose UI (where the dialog lives)
+        screenLog("Back pressed");
         if (document.body.classList.contains('ar-active')) {
             document.body.classList.add('show-ui');
         }
-
         try {
-            if (
-                window.kmpBridge &&
-                typeof window.kmpBridge.onBackPressed === "function"
-            ) {
+            if (window.kmpBridge && typeof window.kmpBridge.onBackPressed === "function") {
                 window.kmpBridge.onBackPressed();
                 return;
-            } else if (history.length > 1) {
+            }
+            if (history.length > 1) {
                 history.back();
-                return;
             }
         } catch (e) {
             console.error("onBackPressed error:", e);
@@ -230,15 +200,13 @@
     }
 
     let arIntervalId = null;
-    let isStoppingAR = false;
 
     window.stopARSession = function() {
         if (isStoppingAR) return;
         isStoppingAR = true;
+        screenLog("Stopping AR (V47)...");
 
         try {
-            screenLog("Stopping AR Session (V29)...");
-
             if (arIntervalId) {
                 clearInterval(arIntervalId);
                 arIntervalId = null;
@@ -246,183 +214,164 @@
 
             document.body.classList.remove("ar-active");
             document.body.classList.remove("show-ui");
-
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            // Cleanup both containers
-            ["ARContainer", "ViewerContainer"].forEach(id => {
-                const container = document.getElementById(id);
-                if (container) {
-                    const scene = container.querySelector('a-scene');
-                    if (scene) {
-                        try {
-                            if (scene.systems && scene.systems['mindar-image-system']) {
-                                scene.systems['mindar-image-system'].stop();
-                            }
-                            if (typeof scene.pause === 'function') scene.pause();
-                        } catch(e) {}
-                        try { scene.parentNode.removeChild(scene); } catch(e) {}
+            // 1. Stop all videos and camera streams immediately
+            const videos = document.getElementsByTagName('video');
+            for (let i = 0; i < videos.length; i++) {
+                try {
+                    const v = videos[i];
+                    if (v.srcObject) {
+                        const tracks = v.srcObject.getTracks();
+                        for(let j=0; j<tracks.length; j++) {
+                            try { tracks[j].stop(); } catch(e) {}
+                        }
+                        v.srcObject = null;
                     }
-                    container.style.display = "none";
-                    container.innerHTML = "";
+                    v.pause();
+                } catch(e) {}
+            }
+
+            // 2. Hide containers.
+            // WE DO NOT CLEAR innerHTML HERE ANYMORE to avoid the "Back" crash.
+            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
+            for (let i = 0; i < containers.length; i++) {
+                if (containers[i]) {
+                    containers[i].style.display = "none";
+                    // Gently pause the scene if it exists
+                    try {
+                        const scene = containers[i].querySelector('a-scene');
+                        if (scene) scene.pause();
+                    } catch(e) {}
                 }
-            });
+            }
 
-            // CRITICAL: Remove all lingering video and canvas elements created by A-Frame/MindAR
-            // These are often added directly to the body outside our containers.
-            const garbage = document.querySelectorAll('body > video, body > .a-canvas, .mindar-ui-overlay, .mindar-ui-loading');
-            garbage.forEach(el => {
-                try { el.parentNode.removeChild(el); } catch(e) {}
-            });
+            // 3. Hide overlays
+            const overlays = document.querySelectorAll('.mindar-ui-overlay, .mindar-ui-loading, .a-canvas');
+            for (let i = 0; i < overlays.length; i++) {
+                try { overlays[i].style.display = 'none'; } catch(e) {}
+            }
 
-            // Reset body/html styles
-            document.body.style.backgroundColor = "";
-            document.documentElement.style.backgroundColor = "";
-
-            // Delay the resize event to ensure DOM is stable
+            // 4. Delay clearing DOM until well after the transition
             setTimeout(() => {
                 try {
-                    isStoppingAR = false;
-                    screenLog("Cleanup complete. Ready (V31).");
-                    // REMOVED: window.dispatchEvent(new Event('resize')) to avoid cross-origin crashes
-                } catch (e) {
-                    console.error("stopARSession cleanup error:", e);
-                    isStoppingAR = false;
-                }
-            }, 300);
+                    screenLog("Performing deferred cleanup...");
+                    for (let i = 0; i < containers.length; i++) {
+                        const c = containers[i];
+                        if (c) {
+                            // Clear by setting a single space - sometimes safer than empty string
+                            c.innerHTML = " ";
+                        }
+                    }
+                    const bodyCanvases = document.querySelectorAll('body > .a-canvas');
+                    for (let i = 0; i < bodyCanvases.length; i++) {
+                        try { bodyCanvases[i].parentNode.removeChild(bodyCanvases[i]); } catch(e) {}
+                    }
+                } catch(e) {}
+
+                isStoppingAR = false;
+                screenLog("Cleanup done (V47).");
+            }, 3000); // 3 seconds delay - plenty of time to be away from the screen
 
         } catch (e) {
             isStoppingAR = false;
-            console.error("stopARSession error:", e);
+            console.error("Cleanup error:", e);
         }
     };
 
-    // Global click listener to toggle UI visibility during AR
-
-    document.addEventListener('click', (e) => {
-
-        if (e.target.id === "BackButton") {
-            return;
-        }
-
-        if (document.body.classList.contains('ar-active')) {
-
-            if (e.target.closest('#ComposeTarget > *')) {
-                return;
-            }
-
-            document.body.classList.toggle('show-ui');
-
-            const isShowing =
-                document.body.classList.contains('show-ui');
-
-            screenLog(
-                isShowing
-                    ? "UI Revealed"
-                    : "UI Hidden (Camera Focused)"
-            );
-        }
-    });
-
-    window.startARSession = function(
-        mindFile,
-        htmlContent
-    ) {
-
+    window.startARSession = function(mindFile, htmlContent) {
+        // If we are still "stopping" (in the 3s window), we force clear now
         if (isStoppingAR) {
-            screenLog("Wait: Still cleaning up...");
-            setTimeout(() => window.startARSession(mindFile, htmlContent), 100);
-            return;
+            screenLog("Force clearing for new session...");
+            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
+            for (let i = 0; i < containers.length; i++) {
+                if(containers[i]) containers[i].innerHTML = "";
+            }
+            isStoppingAR = false;
         }
 
-        screenLog("V29 startARSession");
+        screenLog("Starting AR (V47): " + mindFile);
 
-        document.body.classList.add("ar-active");
-        document.body.classList.remove("show-ui");
-
-        // Show back button when AR starts
-        const backBtn = document.getElementById("BackButton");
-        if (backBtn) backBtn.style.display = "block";
-
-        const container =
-            document.getElementById("ARContainer");
-
-        if (container) {
-            container.style.display = "block";
-            container.innerHTML = htmlContent;
-
-            const sceneEl = container.querySelector('a-scene');
-
-            if (sceneEl) {
-                sceneEl.addEventListener('targetFound', (event) => {
-                    const targetIndex = (event.detail && event.detail.targetIndex !== undefined) ? event.detail.targetIndex : "unknown";
-                    screenLog("Target Found: " + targetIndex);
-
-                    // Improved video lookup
-                    let video = document.getElementById("arVideo");
-                    if (!video) {
-                        video = sceneEl.querySelector("#arVideo");
-                    }
-                    if (!video) {
-                        video = document.querySelector("video[id='arVideo']");
-                    }
-
-                    if (video) {
-                        screenLog("Video found, playing...");
-                        video.play().then(() => {
-                            screenLog("Video playing successfully");
-                        }).catch((err) => {
-                            screenLog("Video play error: " + err.message);
-                        });
-                    } else {
-                        screenLog("Error: #arVideo not found");
-                    }
-                });
-
-                sceneEl.addEventListener('targetLost', (event) => {
-                    const targetIndex = (event.detail && event.detail.targetIndex !== undefined) ? event.detail.targetIndex : "unknown";
-                    screenLog("Target Lost: " + targetIndex);
-                    const video = document.getElementById("arVideo");
-                    if (video) video.pause();
-                });
-
-                sceneEl.addEventListener('arReady', () => {
-                    screenLog("MindAR Ready");
+        try {
+            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
+            for (let i = 0; i < containers.length; i++) {
+                if(containers[i]) {
                     try {
-                        window.dispatchEvent(new Event('resize'));
-                    } catch (e) {}
-                });
+                        containers[i].innerHTML = "";
+                    } catch(e) {}
+                }
             }
+        } catch(e) {}
+
+        try {
+            document.body.classList.add("ar-active");
+            document.body.classList.remove("show-ui");
+            const backBtn = document.getElementById("BackButton");
+            if (backBtn) backBtn.style.display = "block";
+
+            const container = document.getElementById("ARContainer");
+            if (container) {
+                container.style.display = "block";
+                container.innerHTML = htmlContent;
+
+                const sceneEl = container.querySelector('a-scene');
+                if (sceneEl) {
+                    sceneEl.addEventListener('arReady', () => {
+                        screenLog("MindAR Ready");
+                        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+                    });
+                    sceneEl.addEventListener('arError', (e) => {
+                        screenLog("AR Error: " + (e.detail ? e.detail.error : "unknown"));
+                    });
+                    sceneEl.addEventListener('targetFound', (e) => {
+                        screenLog("Found Target: " + (e.detail ? e.detail.targetIndex : "0"));
+                        const video = document.getElementById("arVideo");
+                        if (video) video.play().catch(err => screenLog("Play failed: " + err.message));
+                    });
+                    sceneEl.addEventListener('targetLost', () => {
+                        screenLog("Lost Target");
+                        const video = document.getElementById("arVideo");
+                        if (video) video.pause();
+                    });
+                }
+            }
+        } catch (e) {
+            screenLog("Start Error: " + e.message);
         }
 
         if (arIntervalId) clearInterval(arIntervalId);
-
         arIntervalId = setInterval(() => {
-            // Fix KMP canvases
             const composeCanvases = document.querySelectorAll('#ComposeTarget canvas');
-            composeCanvases.forEach(c => {
-                c.style.backgroundColor = "transparent";
-            });
+            if (composeCanvases.length > 0) {
+                for (let i = 0; i < composeCanvases.length; i++) {
+                    try { composeCanvases[i].style.backgroundColor = "transparent"; } catch(e) {}
+                }
+            }
 
-            // Fix AR elements ONLY if AR is active
             if (document.body.classList.contains('ar-active')) {
-                const arBackgroundVideos = document.querySelectorAll('video:not(#arVideo)');
-                arBackgroundVideos.forEach(el => {
-                    el.style.width = "100vw";
-                    el.style.height = "100dvh";
-                    el.style.left = "0";
-                    el.style.top = "0";
-                    el.style.position = "fixed";
-                    el.style.objectFit = "cover";
-                });
+                const bgVideos = document.querySelectorAll('video:not(#arVideo)');
+                for (let i = 0; i < bgVideos.length; i++) {
+                    try {
+                        const v = bgVideos[i];
+                        v.style.width = "100vw"; v.style.height = "100dvh";
+                        v.style.left = "0"; v.style.top = "0";
+                        v.style.position = "fixed"; v.style.objectFit = "cover";
+                    } catch(e) {}
+                }
             }
         }, 500);
     };
 
+    document.addEventListener('click', (e) => {
+        if (e.target.id === "BackButton") return;
+        if (document.body.classList.contains('ar-active')) {
+            if (e.target.closest('#ComposeTarget > *')) return;
+            document.body.classList.toggle('show-ui');
+            screenLog(document.body.classList.contains('show-ui') ? "UI Shown" : "UI Hidden");
+        }
+    });
 </script>
-
 <script src="common.js"></script>
-
 </body>
 </html>

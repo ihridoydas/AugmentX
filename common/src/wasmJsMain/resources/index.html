@@ -243,19 +243,22 @@
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            const container = document.getElementById("ARContainer");
-            if (container) {
-                const scene = container.querySelector('a-scene');
+            // Cleanup both containers
+            const arContainer = document.getElementById("ARContainer");
+            if (arContainer) {
+                const scene = arContainer.querySelector('a-scene');
                 if (scene && scene.parentNode) {
-                    try {
-                        if (typeof scene.pause === 'function') scene.pause();
-                    } catch(e) {}
-                    try {
-                        scene.parentNode.removeChild(scene);
-                    } catch(e) {}
+                    try { if (typeof scene.pause === 'function') scene.pause(); } catch(e) {}
+                    try { scene.parentNode.removeChild(scene); } catch(e) {}
                 }
-                container.style.display = "none";
-                container.innerHTML = "";
+                arContainer.style.display = "none";
+                arContainer.innerHTML = "";
+            }
+
+            const viewerContainer = document.getElementById("ViewerContainer");
+            if (viewerContainer) {
+                viewerContainer.style.display = "none";
+                viewerContainer.innerHTML = "";
             }
 
             // Delay the resize event to ensure DOM is stable

@@ -65,7 +65,8 @@ actual fun SceneView(
             val primaryUrl = allUrls.firstOrNull() ?: ""
             println("SceneView: Loading 3D model: $primaryUrl")
             
-            container.setAttribute("style", "width: 100%; height: 100%; background: transparent;")
+            // Offset the viewer so it doesn't block the AppBar (approx 64px)
+            container.setAttribute("style", "width: 100%; height: 100%; background: transparent; position: absolute; top: 0; left: 0;")
             
             val autoRotateAttr = if (autoRotate) "auto-rotate" else ""
             
@@ -99,8 +100,12 @@ actual fun SceneView(
             if (viewerContainer != null) {
                 viewerContainer.appendChild(container)
                 viewerContainer.style.display = "block"
-                // Try higher z-index to ensure it's not hidden by Compose
+                
+                // Position the container below the AppBar area (64px) so Back is clickable
+                viewerContainer.style.top = "64px"
+                viewerContainer.style.height = "calc(100dvh - 64px)"
                 viewerContainer.style.zIndex = "20"
+                viewerContainer.setAttribute("style", viewerContainer.getAttribute("style") ?: "" + "pointer-events: auto;")
             }
             onDispose { 
                 try {

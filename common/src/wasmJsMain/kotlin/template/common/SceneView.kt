@@ -134,6 +134,14 @@ actual fun SceneView(
                     trackingImage?.let { targetImages.add(it) }
                     imageTargets.keys.forEach { if (it != trackingImage) targetImages.add(it) }
 
+                    // Handle Video if present
+                    videoUrl?.let { url ->
+                        // Added 'muted' to bypass autoplay restrictions and 'autoplay' for immediate start
+                        modelAssets.add("<video id=\"arVideo\" src=\"$url\" loop=\"true\" crossorigin=\"anonymous\" muted playsinline webkit-playsinline preload=\"auto\"></video>")
+                        // Default to index 0 for the video if it's the main AR content
+                        modelEntities.add("<a-entity mindar-image-target=\"targetIndex: 0\"><a-video src=\"#arVideo\" width=\"1\" height=\"1\" position=\"0 0 0.1\"></a-video></a-entity>")
+                    }
+
                     targetImages.forEachIndexed { index, path ->
                         val url = if (path == trackingImage) (modelUrl ?: imageTargets[path]) else imageTargets[path]
                         if (url != null) {

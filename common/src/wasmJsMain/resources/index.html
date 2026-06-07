@@ -119,7 +119,8 @@
             display: none; /* Initially hidden */
         }
 
-        video {
+        /* Background Camera Feed ONLY */
+        video:not(#arVideo) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -131,6 +132,11 @@
 
             z-index: 0 !important;
             margin: 0 !important;
+        }
+
+        /* AR Content Video */
+        #arVideo {
+            display: none; /* Hide the asset source element */
         }
 
         canvas.a-canvas {
@@ -159,7 +165,7 @@
 </button>
 
 <div id="LogContainer">
-    V24: Initializing...<br>
+    V29: Initializing...<br>
 </div>
 
 <div id="ARContainer"></div>
@@ -206,21 +212,18 @@
         }
 
         try {
-
             if (
                 window.kmpBridge &&
                 typeof window.kmpBridge.onBackPressed === "function"
             ) {
                 window.kmpBridge.onBackPressed();
                 return;
+            } else if (history.length > 1) {
+                history.back();
+                return;
             }
-
         } catch (e) {
-            console.error(e);
-        }
-
-        if (history.length > 1) {
-            history.back();
+            console.error("onBackPressed error:", e);
         }
     }
 
@@ -232,6 +235,8 @@
         isStoppingAR = true;
 
         try {
+            screenLog("Stopping AR Session (V29)...");
+
             if (arIntervalId) {
                 clearInterval(arIntervalId);
                 arIntervalId = null;
@@ -244,29 +249,46 @@
             if (backBtn) backBtn.style.display = "none";
 
             // Cleanup both containers
-            const arContainer = document.getElementById("ARContainer");
-            if (arContainer) {
-                const scene = arContainer.querySelector('a-scene');
-                if (scene && scene.parentNode) {
-                    try { if (typeof scene.pause === 'function') scene.pause(); } catch(e) {}
-                    try { scene.parentNode.removeChild(scene); } catch(e) {}
+            ["ARContainer", "ViewerContainer"].forEach(id => {
+                const container = document.getElementById(id);
+                if (container) {
+                    const scene = container.querySelector('a-scene');
+                    if (scene) {
+                        try {
+                            if (scene.systems && scene.systems['mindar-image-system']) {
+                                scene.systems['mindar-image-system'].stop();
+                            }
+                            if (typeof scene.pause === 'function') scene.pause();
+                        } catch(e) {}
+                        try { scene.parentNode.removeChild(scene); } catch(e) {}
+                    }
+                    container.style.display = "none";
+                    container.innerHTML = "";
                 }
-                arContainer.style.display = "none";
-                arContainer.innerHTML = "";
-            }
+            });
 
-            const viewerContainer = document.getElementById("ViewerContainer");
-            if (viewerContainer) {
-                viewerContainer.style.display = "none";
-                viewerContainer.innerHTML = "";
-            }
+            // CRITICAL: Remove all lingering video and canvas elements created by A-Frame/MindAR
+            // These are often added directly to the body outside our containers.
+            const garbage = document.querySelectorAll('body > video, body > .a-canvas, .mindar-ui-overlay, .mindar-ui-loading');
+            garbage.forEach(el => {
+                try { el.parentNode.removeChild(el); } catch(e) {}
+            });
+
+            // Reset body/html styles
+            document.body.style.backgroundColor = "";
+            document.documentElement.style.backgroundColor = "";
 
             // Delay the resize event to ensure DOM is stable
             setTimeout(() => {
-                isStoppingAR = false;
-                // Temporarily disabled resize dispatch to isolate crash
-                console.log("Cleanup complete");
-            }, 500);
+                try {
+                    isStoppingAR = false;
+                    screenLog("Cleanup complete. Ready.");
+                    window.dispatchEvent(new Event('resize'));
+                } catch (e) {
+                    console.error("stopARSession cleanup error:", e);
+                    isStoppingAR = false;
+                }
+            }, 300);
 
         } catch (e) {
             isStoppingAR = false;
@@ -306,7 +328,13 @@
         htmlContent
     ) {
 
-        screenLog("V21 startARSession");
+        if (isStoppingAR) {
+            screenLog("Wait: Still cleaning up...");
+            setTimeout(() => window.startARSession(mindFile, htmlContent), 100);
+            return;
+        }
+
+        screenLog("V29 startARSession");
 
         document.body.classList.add("ar-active");
         document.body.classList.remove("show-ui");
@@ -323,7 +351,40 @@
             container.innerHTML = htmlContent;
 
             const sceneEl = container.querySelector('a-scene');
+
             if (sceneEl) {
+                sceneEl.addEventListener('targetFound', (event) => {
+                    const targetIndex = (event.detail && event.detail.targetIndex !== undefined) ? event.detail.targetIndex : "unknown";
+                    screenLog("Target Found: " + targetIndex);
+
+                    // Improved video lookup
+                    let video = document.getElementById("arVideo");
+                    if (!video) {
+                        video = sceneEl.querySelector("#arVideo");
+                    }
+                    if (!video) {
+                        video = document.querySelector("video[id='arVideo']");
+                    }
+
+                    if (video) {
+                        screenLog("Video found, playing...");
+                        video.play().then(() => {
+                            screenLog("Video playing successfully");
+                        }).catch((err) => {
+                            screenLog("Video play error: " + err.message);
+                        });
+                    } else {
+                        screenLog("Error: #arVideo not found");
+                    }
+                });
+
+                sceneEl.addEventListener('targetLost', (event) => {
+                    const targetIndex = (event.detail && event.detail.targetIndex !== undefined) ? event.detail.targetIndex : "unknown";
+                    screenLog("Target Lost: " + targetIndex);
+                    const video = document.getElementById("arVideo");
+                    if (video) video.pause();
+                });
+
                 sceneEl.addEventListener('arReady', () => {
                     screenLog("MindAR Ready");
                     window.dispatchEvent(new Event('resize'));
@@ -342,16 +403,14 @@
 
             // Fix AR elements ONLY if AR is active
             if (document.body.classList.contains('ar-active')) {
-                const arElements = document.querySelectorAll('video, .a-canvas');
-                arElements.forEach(el => {
+                const arBackgroundVideos = document.querySelectorAll('video:not(#arVideo)');
+                arBackgroundVideos.forEach(el => {
                     el.style.width = "100vw";
                     el.style.height = "100dvh";
                     el.style.left = "0";
                     el.style.top = "0";
                     el.style.position = "fixed";
-                    if (el.tagName === 'VIDEO') {
-                        el.style.objectFit = "cover";
-                    }
+                    el.style.objectFit = "cover";
                 });
             }
         }, 500);

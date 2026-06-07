@@ -34,6 +34,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import template.common.screens.HomeScreen
 import template.common.screens.ViewScreen
+import template.common.screens.DemoScreen
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
@@ -42,40 +43,39 @@ import template.theme.components.SpatialWrapper
 fun MainAnimationNavHost() {
     val backStack = remember { mutableStateListOf<ScreenDestinations>(ScreenDestinations.HomeScreen) }
 
+    val navigator = remember {
+        object : Navigator {
+            override fun navigate(route: ScreenDestinations) {
+                backStack.add(route)
+            }
+
+            override fun goBack() {
+                if (backStack.size > 1) {
+                    backStack.removeAt(backStack.size - 1)
+                }
+            }
+        }
+    }
+
     SpatialWrapper {
         Box(modifier = Modifier.fillMaxSize()) {
             NavDisplay(
                 backStack = backStack,
-                onBack = {
-                    if (backStack.size > 1) {
-                        backStack.removeAt(backStack.size - 1)
-                    }
-                },
+                onBack = { navigator.goBack() },
             ) { key ->
                 when (key) {
                     ScreenDestinations.HomeScreen -> NavEntry(key) {
-                        HomeScreen(
-                            navigator = object : Navigator {
-                                override fun navigate(route: ScreenDestinations) {
-                                    backStack.add(route)
-                                }
-
-                                override fun goBack() {
-                                    if (backStack.size > 1) {
-                                        backStack.removeAt(backStack.size - 1)
-                                    }
-                                }
-                            },
-                        )
+                        HomeScreen(navigator = navigator)
                     }
 
                     ScreenDestinations.ViewScreen -> NavEntry(key) {
-                        ViewScreen(
-                            onBackPress = {
-                                if (backStack.size > 1) {
-                                    backStack.removeAt(backStack.size - 1)
-                                }
-                            },
+                        ViewScreen(onBackPress = { navigator.goBack() })
+                    }
+
+                    is ScreenDestinations.DemoScreen -> NavEntry(key) {
+                        DemoScreen(
+                            id = key.id,
+                            navigator = navigator,
                         )
                     }
                 }

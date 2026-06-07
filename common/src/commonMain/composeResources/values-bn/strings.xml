@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">টেমপ্লেট</string>
+    <string name="app_name">AugmentX</string>
+    <string name="spatial_experience">স্থানিক অভিজ্ঞতা</string>
+    <string name="quick_ar_view">দ্রুত এআর দেখুন</string>
+    <string name="explore_capabilities">%1$s-এর ক্ষমতা অন্বেষণ করুন</string>
+
+    <!-- Categories -->
+    <string name="category_3d">থ্রিডি</string>
+    <string name="category_environment">পরিবেশ</string>
+    <string name="category_interaction">ইন্টারঅ্যাকশন</string>
+    <string name="category_content">কন্টেন্ট</string>
+    <string name="category_advanced">অ্যাডভান্সড</string>
+    <string name="category_ar">এআর</string>
+
+    <!-- Demo Screen -->
+    <string name="demo_title">ডেমো: %1$s</string>
+    <string name="demo_coming_soon">\'%1$s\'-এর ডেমো শীঘ্রই আসছে!</string>
+
     <string name="hello_developer"> হ্যালো ডেভেলপার!\n%1$s</string>
     <string name="nice_to_meet_you">আপনার সাথে দেখা করে ভালো লাগলো!</string>
     <string name="welcome">স্বাগতম</string>

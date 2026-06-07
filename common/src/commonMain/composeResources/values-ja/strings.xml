@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">テンプレート</string>
+    <string name="app_name">AugmentX</string>
+    <string name="spatial_experience">空間体験</string>
+    <string name="quick_ar_view">クイックARビュー</string>
+    <string name="explore_capabilities">%1$sの機能を探索する</string>
+
+    <!-- Categories -->
+    <string name="category_3d">3D</string>
+    <string name="category_environment">環境</string>
+    <string name="category_interaction">インタラクション</string>
+    <string name="category_content">コンテンツ</string>
+    <string name="category_advanced">高度な機能</string>
+    <string name="category_ar">AR</string>
+
+    <!-- Demo Screen -->
+    <string name="demo_title">デモ: %1$s</string>
+    <string name="demo_coming_soon">「%1$s」のデモは近日公開予定です！</string>
+
     <string name="hello_developer"> こんにちは開発者！\n%1$s</string>
     <string name="nice_to_meet_you">はじめまして！</string>
     <string name="welcome">ようこそ</string>

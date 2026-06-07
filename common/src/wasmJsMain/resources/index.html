@@ -188,6 +188,8 @@
         }
     }
 
+    screenLog("V31 Initializing...");
+
     // Diagnostic check for model-viewer
     window.addEventListener('load', () => {
         setTimeout(() => {
@@ -282,8 +284,8 @@
             setTimeout(() => {
                 try {
                     isStoppingAR = false;
-                    screenLog("Cleanup complete. Ready.");
-                    window.dispatchEvent(new Event('resize'));
+                    screenLog("Cleanup complete. Ready (V31).");
+                    // REMOVED: window.dispatchEvent(new Event('resize')) to avoid cross-origin crashes
                 } catch (e) {
                     console.error("stopARSession cleanup error:", e);
                     isStoppingAR = false;
@@ -387,7 +389,9 @@
 
                 sceneEl.addEventListener('arReady', () => {
                     screenLog("MindAR Ready");
-                    window.dispatchEvent(new Event('resize'));
+                    try {
+                        window.dispatchEvent(new Event('resize'));
+                    } catch (e) {}
                 });
             }
         }

@@ -21,6 +21,9 @@ import org.w3c.dom.HTMLElement
 @JsFun("(mindFile, htmlContent) => window.startARSession(mindFile, htmlContent)")
 external fun callStartWebAR(mindFile: String, htmlContent: String)
 
+@JsFun("() => { if (window.stopARSession) window.stopARSession(); }")
+external fun callStopWebAR()
+
 @Composable
 actual fun SceneView(
     modifier: Modifier,
@@ -43,6 +46,17 @@ actual fun SceneView(
     if (allUrls.isEmpty() && videoUrl == null) return
 
     var arStarted by remember { mutableStateOf(false) }
+
+    // Ensure we clean up AR when this composable leaves the screen
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                callStopWebAR()
+            } catch (e: Exception) {
+                println("SceneView Dispose Error: ${e.message}")
+            }
+        }
+    }
 
     // Standard 3D Viewer Logic (Non-AR)
     if (!isAR || arMode != ARMode.Image) {

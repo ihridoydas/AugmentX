@@ -41,10 +41,12 @@ import template.common.screens.DemoScreen
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
+import androidx.compose.runtime.DisposableEffect
 
 @Composable
 fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) {
     val backStack = remember { mutableStateListOf<ScreenDestinations>(ScreenDestinations.HomeScreen) }
+    val interceptors = remember { mutableStateListOf<() -> Boolean>() }
 
     val navigator = remember {
         object : Navigator {
@@ -62,7 +64,11 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
 
     LaunchedEffect(onBackPressedRegister) {
         onBackPressedRegister?.invoke {
-            navigator.goBack()
+            // Check interceptors in reverse order (last added first)
+            val handled = interceptors.toList().reversed().any { it() }
+            if (!handled) {
+                navigator.goBack()
+            }
         }
     }
 
@@ -70,7 +76,10 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
         Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
             NavDisplay(
                 backStack = backStack,
-                onBack = { navigator.goBack() },
+                onBack = { 
+                    val handled = interceptors.toList().reversed().any { it() }
+                    if (!handled) navigator.goBack() 
+                },
             ) { key ->
                 when (key) {
                     ScreenDestinations.HomeScreen -> NavEntry(key) {
@@ -78,7 +87,15 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                     }
 
                     ScreenDestinations.ViewScreen -> NavEntry(key) {
-                        ViewScreen(onBackPress = { navigator.goBack() })
+                        ViewScreen(
+                            onBackPress = { navigator.goBack() },
+                            onBackIntercept = { interceptor ->
+                                DisposableEffect(interceptor) {
+                                    interceptors.add(interceptor)
+                                    onDispose { interceptors.remove(interceptor) }
+                                }
+                            }
+                        )
                     }
 
                     is ScreenDestinations.DemoScreen -> NavEntry(key) {

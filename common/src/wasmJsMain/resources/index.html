@@ -153,7 +153,7 @@
 </button>
 
 <div id="LogContainer">
-    V19: Initializing...<br>
+    V22: Initializing...<br>
 </div>
 
 <div id="ARContainer"></div>
@@ -163,14 +163,15 @@
 <script>
 
     function screenLog(msg) {
-        const log =
-            document.getElementById("LogContainer");
+        try {
+            const log = document.getElementById("LogContainer");
+            if (!log) return;
 
-        log.innerHTML +=
-            "> " + msg + "<br>";
-
-        log.scrollTop =
-            log.scrollHeight;
+            log.innerHTML += "> " + msg + "<br>";
+            log.scrollTop = log.scrollHeight;
+        } catch (e) {
+            console.error("screenLog error:", e);
+        }
     }
 
     /* NEW: BACK HANDLER */
@@ -179,8 +180,10 @@
 
         screenLog("Back button pressed");
 
-        // Hide back button when returning from AR
-        document.getElementById("BackButton").style.display = "none";
+        // If in AR mode, show the Compose UI (where the dialog lives)
+        if (document.body.classList.contains('ar-active')) {
+            document.body.classList.add('show-ui');
+        }
 
         try {
 
@@ -200,6 +203,53 @@
             history.back();
         }
     }
+
+    let arIntervalId = null;
+    let isStoppingAR = false;
+
+    window.stopARSession = function() {
+        if (isStoppingAR) return;
+        isStoppingAR = true;
+
+        try {
+            if (arIntervalId) {
+                clearInterval(arIntervalId);
+                arIntervalId = null;
+            }
+
+            document.body.classList.remove("ar-active");
+            document.body.classList.remove("show-ui");
+
+            const backBtn = document.getElementById("BackButton");
+            if (backBtn) backBtn.style.display = "none";
+
+            const container = document.getElementById("ARContainer");
+            if (container) {
+                const scene = container.querySelector('a-scene');
+                if (scene && scene.parentNode) {
+                    try {
+                        if (typeof scene.pause === 'function') scene.pause();
+                    } catch(e) {}
+                    try {
+                        scene.parentNode.removeChild(scene);
+                    } catch(e) {}
+                }
+                container.style.display = "none";
+                container.innerHTML = "";
+            }
+
+            // Delay the resize event to ensure DOM is stable
+            setTimeout(() => {
+                isStoppingAR = false;
+                // Temporarily disabled resize dispatch to isolate crash
+                console.log("Cleanup complete");
+            }, 500);
+
+        } catch (e) {
+            isStoppingAR = false;
+            console.error("stopARSession error:", e);
+        }
+    };
 
     // Global click listener to toggle UI visibility during AR
 
@@ -233,65 +283,54 @@
         htmlContent
     ) {
 
-        screenLog("V20 startARSession");
+        screenLog("V21 startARSession");
 
         document.body.classList.add("ar-active");
         document.body.classList.remove("show-ui");
 
         // Show back button when AR starts
-        document.getElementById("BackButton").style.display = "block";
+        const backBtn = document.getElementById("BackButton");
+        if (backBtn) backBtn.style.display = "block";
 
         const container =
             document.getElementById("ARContainer");
 
-        container.style.display = "block";
-        container.innerHTML = htmlContent;
+        if (container) {
+            container.style.display = "block";
+            container.innerHTML = htmlContent;
 
-        const sceneEl =
-            container.querySelector('a-scene');
-
-        if (sceneEl) {
-
-            sceneEl.addEventListener(
-                'arReady',
-                () => {
+            const sceneEl = container.querySelector('a-scene');
+            if (sceneEl) {
+                sceneEl.addEventListener('arReady', () => {
                     screenLog("MindAR Ready");
-                    // Force a resize to fix aspect ratio issues
                     window.dispatchEvent(new Event('resize'));
-                }
-            );
+                });
+            }
         }
 
-        setInterval(() => {
+        if (arIntervalId) clearInterval(arIntervalId);
 
+        arIntervalId = setInterval(() => {
             // Fix KMP canvases
-            const composeCanvases =
-                document.querySelectorAll(
-                    '#ComposeTarget canvas'
-                );
-
+            const composeCanvases = document.querySelectorAll('#ComposeTarget canvas');
             composeCanvases.forEach(c => {
-                c.style.backgroundColor =
-                    "transparent";
+                c.style.backgroundColor = "transparent";
             });
 
-            // Fix AR canvases and videos
-            const arElements =
-                document.querySelectorAll(
-                    'video, .a-canvas'
-                );
-
-            arElements.forEach(el => {
-                el.style.width = "100vw";
-                el.style.height = "100dvh";
-                el.style.left = "0";
-                el.style.top = "0";
-                el.style.position = "fixed";
-                if (el.tagName === 'VIDEO') {
-                    el.style.objectFit = "cover";
-                }
-            });
-
+            // Fix AR elements ONLY if AR is active
+            if (document.body.classList.contains('ar-active')) {
+                const arElements = document.querySelectorAll('video, .a-canvas');
+                arElements.forEach(el => {
+                    el.style.width = "100vw";
+                    el.style.height = "100dvh";
+                    el.style.left = "0";
+                    el.style.top = "0";
+                    el.style.position = "fixed";
+                    if (el.tagName === 'VIDEO') {
+                        el.style.objectFit = "cover";
+                    }
+                });
+            }
         }, 500);
     };
 

@@ -30,9 +30,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.stringResource
@@ -43,7 +42,47 @@ import template.common.generated.resources.welcome
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewScreen(onBackPress: () -> Unit) {
+fun ViewScreen(
+    onBackPress: () -> Unit,
+    onBackIntercept: @Composable (() -> Boolean) -> Unit = {}
+) {
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    // Register back interceptor
+    onBackIntercept {
+        if (!showExitDialog) {
+            showExitDialog = true
+            true // Handled
+        } else {
+            false // Already showing, let it pass or stay? 
+            // Actually if it's already showing, we don't want to go back yet.
+            true
+        }
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Exit AR Session?") },
+            text = { Text("Do you want to stop the AR session and return to the home screen?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitDialog = false
+                        onBackPress()
+                    }
+                ) {
+                    Text("Exit")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent, // Forced transparency
@@ -51,7 +90,7 @@ fun ViewScreen(onBackPress: () -> Unit) {
             AppBar(
                 title = stringResource(Res.string.welcome),
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNav = onBackPress,
+                onNav = { showExitDialog = true },
             )
         },
         content = { padding ->

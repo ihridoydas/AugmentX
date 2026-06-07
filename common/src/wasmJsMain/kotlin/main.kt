@@ -81,3 +81,6 @@ external fun setOnBackPressed(onBack: () -> Unit)
 
 @JsFun("() => { const btn = document.getElementById('BackButton'); if (btn) btn.style.display = 'none'; }")
 external fun hideWebBackButton()
+
+@JsFun("() => { if (window.stopARSession) window.stopARSession(); }")
+external fun stopARSession()

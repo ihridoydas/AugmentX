@@ -61,20 +61,58 @@ actual fun SceneView(
     // Standard 3D Viewer Logic (Non-AR)
     if (!isAR || arMode != ARMode.Image) {
         val container = remember { (document.createElement("div") as HTMLElement) }
-        LaunchedEffect(allUrls) {
-            container.setAttribute("style", "position:fixed; z-index: 5; width:100%; height:100%; top:0; left:0; background:transparent;")
-            container.innerHTML = allUrls.joinToString("") { url ->
-                "<model-viewer src=\"$url\" camera-controls touch-action=\"pan-y\" style=\"width:100%; height:100%; background:transparent;\"></model-viewer>"
-            }
+        LaunchedEffect(allUrls, autoRotate) {
+            val primaryUrl = allUrls.firstOrNull() ?: ""
+            println("SceneView: Loading 3D model: $primaryUrl")
+            
+            container.setAttribute("style", "width: 100%; height: 100%; background: transparent;")
+            
+            val autoRotateAttr = if (autoRotate) "auto-rotate" else ""
+            
+            container.innerHTML = """
+                <model-viewer 
+                    src="$primaryUrl" 
+                    camera-controls 
+                    touch-action="pan-y" 
+                    $autoRotateAttr
+                    shadow-intensity="1"
+                    environment-image="neutral"
+                    exposure="1"
+                    interaction-prompt="auto"
+                    ar-modes="webxr scene-viewer quick-look"
+                    style="width:100%; height:100%; background:transparent; --progress-bar-color: transparent;">
+                </model-viewer>
+            """.trimIndent()
+            
+            val mv = container.querySelector("model-viewer")
+            mv?.addEventListener("load", {
+                println("SceneView: Model loaded successfully")
+            })
+            mv?.addEventListener("error", {
+                println("SceneView: Model failed to load")
+            })
+            
             onModelLoaded()
         }
         DisposableEffect(container) {
-            val arContainer = document.getElementById("ARContainer") as? HTMLElement
-            arContainer?.appendChild(container)
-            arContainer?.style?.display = "block"
+            val viewerContainer = document.getElementById("ViewerContainer") as? HTMLElement
+            if (viewerContainer != null) {
+                viewerContainer.appendChild(container)
+                viewerContainer.style.display = "block"
+                // Try higher z-index to ensure it's not hidden by Compose
+                viewerContainer.style.zIndex = "20"
+            }
             onDispose { 
-                arContainer?.removeChild(container)
-                arContainer?.style?.display = "none"
+                try {
+                    if (container.parentNode != null) {
+                        container.parentNode?.removeChild(container)
+                    }
+                    if (viewerContainer != null && viewerContainer.children.length == 0) {
+                        viewerContainer.style.display = "none"
+                    }
+                } catch (e: Exception) {
+                    println("SceneView: Cleanup error: ${e.message}")
+                }
             }
         }
     }

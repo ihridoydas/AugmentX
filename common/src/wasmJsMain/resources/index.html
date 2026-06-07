@@ -47,7 +47,7 @@
             pointer-events: auto;
         }
 
-        #ARContainer {
+        #ARContainer, #ViewerContainer {
             position: fixed;
             top: 0;
             left: 0;
@@ -55,11 +55,16 @@
             bottom: 0;
 
             width: 100%;
-            height: 100%;
+            height: 100dvh;
 
             z-index: 1;
             display: none;
             overflow: hidden;
+            background: transparent;
+        }
+
+        #ViewerContainer:not(:empty) {
+            display: block !important;
         }
 
         #LogContainer {
@@ -143,6 +148,7 @@
 
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 
 <body>
@@ -153,10 +159,11 @@
 </button>
 
 <div id="LogContainer">
-    V22: Initializing...<br>
+    V24: Initializing...<br>
 </div>
 
 <div id="ARContainer"></div>
+<div id="ViewerContainer"></div>
 
 <div id="ComposeTarget"></div>
 
@@ -169,10 +176,23 @@
 
             log.innerHTML += "> " + msg + "<br>";
             log.scrollTop = log.scrollHeight;
+            console.log("LOG: " + msg);
         } catch (e) {
             console.error("screenLog error:", e);
         }
     }
+
+    // Diagnostic check for model-viewer
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const mv = document.createElement('model-viewer');
+            if (mv.constructor === HTMLElement) {
+                screenLog("Model Viewer: Library NOT recognized (Check script)");
+            } else {
+                screenLog("Model Viewer: Library Loaded OK");
+            }
+        }, 2000);
+    });
 
     /* NEW: BACK HANDLER */
 

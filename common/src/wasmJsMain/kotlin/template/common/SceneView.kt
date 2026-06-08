@@ -24,6 +24,9 @@ external fun callStartWebAR(mindFile: String, htmlContent: String)
 @JsFun("() => { if (window.stopARSession) window.stopARSession(); }")
 external fun callStopWebAR()
 
+@JsFun("() => { window.location.href = window.location.origin; }")
+external fun callHardReset()
+
 @Composable
 actual fun SceneView(
     modifier: Modifier,

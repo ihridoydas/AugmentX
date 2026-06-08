@@ -36,4 +36,8 @@ actual object PlatformUtils {
     actual fun changeTheme(isDark: Boolean) {
         println("PlatformUtils Desktop: changeTheme to isDark=$isDark")
     }
+
+    actual fun hardReset() {
+        // Desktop doesn't need a hard browser reset
+    }
 }

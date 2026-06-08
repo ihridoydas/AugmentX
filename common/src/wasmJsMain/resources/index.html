@@ -178,23 +178,20 @@
         }
     }
 
-    screenLog("V58 Initializing...");
+    screenLog("V65 Initializing (Hard Reset on Back)...");
 
     function onBackPressed() {
-        screenLog("Back pressed");
-        if (document.body.classList.contains('ar-active')) {
-            document.body.classList.add('show-ui');
-        }
+        screenLog("Back pressed - Reloading Browser...");
         try {
-            if (window.kmpBridge && typeof window.kmpBridge.onBackPressed === "function") {
-                window.kmpBridge.onBackPressed();
-                return;
-            }
-            if (history.length > 1) {
-                history.back();
-            }
+            // Stop AR session if active
+            if (window.stopARSession) window.stopARSession();
+
+            // Wait briefly for tracks to stop then hard reload to origin
+            setTimeout(() => {
+                window.location.href = window.location.origin;
+            }, 400);
         } catch (e) {
-            console.error("onBackPressed error:", e);
+            window.location.href = window.location.origin;
         }
     }
 
@@ -203,7 +200,7 @@
     window.stopARSession = function() {
         if (isStoppingAR) return;
         isStoppingAR = true;
-        screenLog("Stopping AR (V58)...");
+        screenLog("Stopping AR (V65)...");
 
         if (arIntervalId) {
             clearInterval(arIntervalId);
@@ -216,46 +213,41 @@
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            // 1. Stop MindAR System
-            const container = document.getElementById("ARContainer");
-            if (container) {
-                const scene = container.querySelector('a-scene');
-                if (scene) {
-                    try {
-                        screenLog("Stopping Scene...");
-                        if (scene.systems && scene.systems['mindar-image-system']) {
-                            scene.systems['mindar-image-system'].stop();
-                        }
-                        scene.pause();
-                        if (scene.parentNode) scene.parentNode.removeChild(scene);
-                    } catch(e) {}
-                }
-                container.innerHTML = "";
-            }
-
-            // 2. Stop camera
-            const allVideos = document.querySelectorAll('video');
-            for (let i = 0; i < allVideos.length; i++) {
+            // 1. Stop all video tracks
+            const videos = document.querySelectorAll('video');
+            videos.forEach(v => {
                 try {
-                    const v = allVideos[i];
                     if (v.srcObject) {
                         v.srcObject.getTracks().forEach(t => t.stop());
                         v.srcObject = null;
                     }
                     v.pause();
+                    v.removeAttribute('src');
+                    v.load();
                     v.remove();
                 } catch(e) {}
+            });
+
+            // 2. Stop MindAR System
+            const container = document.getElementById("ARContainer");
+            if (container) {
+                const scene = container.querySelector('a-scene');
+                if (scene) {
+                    try {
+                        if (scene.systems && scene.systems['mindar-image-system']) {
+                            scene.systems['mindar-image-system'].stop();
+                        }
+                        scene.pause();
+                        if (scene.renderer) scene.renderer.dispose();
+                        if (window.AFRAME) window.AFRAME.scenes = [];
+                        scene.parentNode.removeChild(scene);
+                    } catch(e) {}
+                }
+                container.innerHTML = "";
             }
 
-            // 3. Clear A-Frame Globals
-            if (window.AFRAME) {
-                if (window.AFRAME.scenes) {
-                    window.AFRAME.scenes.forEach(s => {
-                        try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e) {}
-                    });
-                    window.AFRAME.scenes = [];
-                }
-            }
+            // 3. Clear Caches
+            if (window.THREE && window.THREE.Cache) window.THREE.Cache.clear();
 
             // 4. Remove all leftovers
             const garbage = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, video, canvas, .a-loader-title, .a-enter-vr, .a-enter-ar');
@@ -263,8 +255,8 @@
 
             setTimeout(() => {
                 isStoppingAR = false;
-                screenLog("Cleanup done (V58).");
-            }, 1200);
+                screenLog("Cleanup done (V65).");
+            }, 600);
 
         } catch (e) {
             isStoppingAR = false;
@@ -275,14 +267,13 @@
     window.startARSession = function(mindFile, htmlContent) {
         if (isStoppingAR) {
             screenLog("Waiting for cleanup...");
-            setTimeout(() => window.startARSession(mindFile, htmlContent), 500);
+            setTimeout(() => window.startARSession(mindFile, htmlContent), 400);
             return;
         }
 
         const timestamp = Date.now();
-        // Use path without origin and add cache buster
-        const fullMindPath = mindFile + "?t=" + timestamp;
-        screenLog("Starting AR (V58): " + fullMindPath);
+        const fullMindPath = mindFile + (mindFile.includes('?') ? '&' : '?') + "t=" + timestamp;
+        screenLog("Starting AR (V65): " + fullMindPath);
 
         try {
             document.body.classList.add("ar-active");
@@ -294,85 +285,78 @@
             if (container) {
                 container.style.display = "block";
 
-                // 1. Process HTML
+                // 1. Prepare HTML with unique IDs
                 let finalHtml = htmlContent;
-
-                // Force mindar settings and add cache buster
+                finalHtml = finalHtml.replace('<a-scene', '<a-scene id="scene-' + timestamp + '"');
+                finalHtml = finalHtml.replace(/id="targetModel(\d+)"/g, 'id="targetModel$1-' + timestamp + '"');
+                finalHtml = finalHtml.replace(/src="#targetModel(\d+)"/g, 'src="#targetModel$1-' + timestamp + '"');
                 finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
-
-                // Add timestamp to any src="..." that looks like an asset (not starting with #)
                 finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
 
-                // Add Lights
                 const lights = `
                     <a-entity light="type: ambient; color: #BBB; intensity: 1.5"></a-entity>
                     <a-entity light="type: directional; color: #FFF; intensity: 1.0" position="-1 2 4"></a-entity>
                 `;
                 finalHtml = finalHtml.replace("</a-scene>", lights + "</a-scene>");
 
-                screenLog("Injecting HTML...");
+                screenLog("Injecting New Scene...");
                 container.innerHTML = finalHtml;
 
                 const sceneEl = container.querySelector('a-scene');
                 if (sceneEl) {
                     sceneEl.addEventListener('arReady', () => {
-                        screenLog("MindAR Ready (V58)");
-                        setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
+                        screenLog("MindAR Ready (V65)");
+                        window.dispatchEvent(new Event('resize'));
                     });
 
                     sceneEl.addEventListener('targetFound', (e) => {
-                        const idx = e.detail ? e.detail.targetIndex : 0;
+                        const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
                         screenLog("Target Found: " + idx);
-
                         const targets = sceneEl.querySelectorAll('[mindar-image-target]');
-                        for (let i = 0; i < targets.length; i++) {
-                            const t = targets[i];
-                            const attrValue = t.getAttribute('mindar-image-target');
-                            if (attrValue) {
-                                // Safe check for targetIndex
-                                const attrStr = String(attrValue).replace(/\s/g, '');
-                                if (attrStr.indexOf("targetIndex:" + idx) !== -1) {
-                                    screenLog("Showing entity " + idx);
-                                    t.setAttribute('visible', 'true');
-                                    const models = t.querySelectorAll('a-gltf-model');
-                                    for (let j = 0; j < models.length; j++) {
-                                        models[j].setAttribute('visible', 'true');
-                                    }
-                                }
+                        targets.forEach(t => {
+                            const attr = t.getAttribute('mindar-image-target');
+                            let isMatch = false;
+                            if (typeof attr === 'string') {
+                                isMatch = attr.replace(/\s/g, '').includes("targetIndex:" + idx);
+                            } else if (attr && typeof attr.targetIndex !== 'undefined') {
+                                isMatch = (attr.targetIndex == idx);
                             }
-                        }
 
-                        const video = document.getElementById("arVideo");
-                        if (video) video.play().catch(e => {});
+                            if (isMatch) {
+                                screenLog("Showing entity " + idx);
+                                t.setAttribute('visible', 'true');
+                                t.querySelectorAll('*').forEach(child => child.setAttribute('visible', 'true'));
+                            }
+                        });
                     });
 
-                    sceneEl.addEventListener('targetLost', () => {
-                        screenLog("Target Lost");
+                    sceneEl.addEventListener('targetLost', (e) => {
+                        const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
+                        screenLog("Target Lost: " + idx);
+                        const targets = sceneEl.querySelectorAll('[mindar-image-target]');
+                        targets.forEach(t => {
+                            const attr = t.getAttribute('mindar-image-target');
+                            let isMatch = false;
+                            if (typeof attr === 'string') {
+                                isMatch = attr.replace(/\s/g, '').includes("targetIndex:" + idx);
+                            } else if (attr && typeof attr.targetIndex !== 'undefined') {
+                                isMatch = (attr.targetIndex == idx);
+                            }
+                            if (isMatch) t.setAttribute('visible', 'false');
+                        });
                         const video = document.getElementById("arVideo");
                         if (video) video.pause();
-                    });
-
-                    const models = container.querySelectorAll('a-gltf-model');
-                    models.forEach((m, idx) => {
-                        m.addEventListener('model-loaded', () => {
-                            screenLog("Model " + idx + " Loaded");
-                            m.setAttribute('visible', 'true');
-                        });
-                        m.addEventListener('model-error', (e) => screenLog("Model Load Error"));
                     });
 
                     sceneEl.addEventListener('loaded', () => {
                         screenLog("A-Frame Loaded");
                         setTimeout(() => {
-                            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
-                                const system = sceneEl.systems['mindar-image-system'];
-                                screenLog("System Scanning: " + system.isScanning);
-                                if (!system.isScanning) {
-                                    screenLog("Forcing start...");
-                                    system.start();
-                                }
+                            const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
+                            if (system) {
+                                system.start();
+                                screenLog("Scanning Started");
                             }
-                        }, 2500);
+                        }, 1000);
                     });
                 }
             }
@@ -380,30 +364,15 @@
             screenLog("Start Error: " + e.message);
         }
 
-
-
-
-
-
-
-
         if (arIntervalId) clearInterval(arIntervalId);
         arIntervalId = setInterval(() => {
-            const composeCanvases = document.querySelectorAll('#ComposeTarget canvas');
-            for (let i = 0; i < composeCanvases.length; i++) {
-                try { composeCanvases[i].style.backgroundColor = "transparent"; } catch(e) {}
-            }
-
             if (document.body.classList.contains('ar-active')) {
                 const bgVideos = document.querySelectorAll('video:not(#arVideo)');
-                for (let i = 0; i < bgVideos.length; i++) {
-                    try {
-                        const v = bgVideos[i];
-                        v.style.width = "100vw"; v.style.height = "100dvh";
-                        v.style.left = "0"; v.style.top = "0";
-                        v.style.position = "fixed"; v.style.objectFit = "cover";
-                    } catch(e) {}
-                }
+                bgVideos.forEach(v => {
+                    v.style.width = "100vw"; v.style.height = "100dvh";
+                    v.style.position = "fixed"; v.style.objectFit = "cover";
+                    v.style.top = "0"; v.style.left = "0";
+                });
             }
         }, 500);
     };
@@ -413,7 +382,6 @@
         if (document.body.classList.contains('ar-active')) {
             if (e.target.closest('#ComposeTarget > *')) return;
             document.body.classList.toggle('show-ui');
-            screenLog(document.body.classList.contains('show-ui') ? "UI Shown" : "UI Hidden");
         }
     });
 </script>

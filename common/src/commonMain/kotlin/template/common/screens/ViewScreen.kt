@@ -39,6 +39,7 @@ import template.common.SceneView
 import template.common.components.AppBar
 import template.common.generated.resources.Res
 import template.common.generated.resources.welcome
+import template.common.util.PlatformUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,8 +55,6 @@ fun ViewScreen(
             showExitDialog = true
             true // Handled
         } else {
-            false // Already showing, let it pass or stay? 
-            // Actually if it's already showing, we don't want to go back yet.
             true
         }
     }
@@ -64,15 +63,17 @@ fun ViewScreen(
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text("Exit AR Session?") },
-            text = { Text("Do you want to stop the AR session and return to the home screen?") },
+            text = { Text("Do you want to stop the AR session and return to the home screen? (This will reload the app to ensure a clean state)") },
             confirmButton = {
                 Button(
                     onClick = {
                         showExitDialog = false
+                        // Use hard reset for Web to clear MindAR/Camera locks
+                        PlatformUtils.hardReset()
                         onBackPress()
                     }
                 ) {
-                    Text("Exit")
+                    Text("Exit & Reload")
                 }
             },
             dismissButton = {

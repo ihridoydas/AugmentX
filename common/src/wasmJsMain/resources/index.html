@@ -2,30 +2,288 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AugmentX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AugmentX AR</title>
+
     <style>
         html, body {
             width: 100%;
-            height: 100%;
+            height: 100dvh;
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #000;
+            background-color: transparent !important;
+            left: 0;
+            top: 0;
         }
+
         #ComposeTarget {
             width: 100%;
             height: 100%;
             position: absolute;
             top: 0;
             left: 0;
+
             z-index: 10;
+            pointer-events: none;
+
+            background: transparent !important;
+            transition: opacity 0.4s ease-in-out;
+        }
+
+        #ComposeTarget > * {
+            pointer-events: auto;
+        }
+
+        body.ar-active #ComposeTarget {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.ar-active.show-ui #ComposeTarget {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #ARContainer, #ViewerContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100dvh;
+            z-index: 1;
+            display: none;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        #LogContainer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            max-height: 80px;
+            background: rgba(0,0,0,0.5);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            overflow-y: auto;
+            z-index: 1000;
+            pointer-events: none;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        #BackButton {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.55);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+        }
+
+        video:not(#arVideo) {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            object-fit: cover !important;
+            z-index: 0 !important;
+            margin: 0 !important;
+        }
+
+        #arVideo { display: none; }
+
+        canvas.a-canvas {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            z-index: 1 !important;
+            margin: 0 !important;
         }
     </style>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
+
 <body>
-    <div id="ComposeTarget"></div>
-    <script src="common.js"></script>
+<button id="BackButton" onclick="onBackPressed()">← Back</button>
+<div id="LogContainer">Initializing...<br></div>
+<div id="ARContainer"></div>
+<div id="ViewerContainer"></div>
+<div id="ComposeTarget"></div>
+
+<script>
+    let isStoppingAR = false;
+    let arIntervalId = null;
+
+    function screenLog(msg) {
+        const log = document.getElementById("LogContainer");
+        if (log) {
+            log.innerHTML += "> " + msg + "<br>";
+            log.scrollTop = log.scrollHeight;
+        }
+        console.log("LOG: " + msg);
+    }
+
+    screenLog("V66 - Stable AR Re-entry");
+
+    function onBackPressed() {
+        screenLog("Back pressed - Surgical Cleanup...");
+        try {
+            if (window.stopARSession) window.stopARSession();
+
+            // Allow time for cleanup then navigate back in KMP
+            setTimeout(() => {
+                if (window.kmpBridge && typeof window.kmpBridge.onBackPressed === "function") {
+                    window.kmpBridge.onBackPressed();
+                } else {
+                    history.back();
+                }
+            }, 300);
+        } catch (e) {
+            window.location.reload();
+        }
+    }
+
+    window.stopARSession = function() {
+        if (isStoppingAR) return;
+        isStoppingAR = true;
+        screenLog("Stopping AR Session...");
+
+        if (arIntervalId) clearInterval(arIntervalId);
+
+        try {
+            document.body.classList.remove("ar-active", "show-ui");
+            const backBtn = document.getElementById("BackButton");
+            if (backBtn) backBtn.style.display = "none";
+
+            // 1. Kill Camera Tracks
+            document.querySelectorAll('video').forEach(v => {
+                if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+                v.pause();
+                v.remove();
+            });
+
+            // 2. Destroy Scene
+            const container = document.getElementById("ARContainer");
+            if (container) {
+                const scene = container.querySelector('a-scene');
+                if (scene) {
+                    if (scene.systems && scene.systems['mindar-image-system']) scene.systems['mindar-image-system'].stop();
+                    scene.pause();
+                    if (scene.renderer) scene.renderer.dispose();
+                    if (window.AFRAME) window.AFRAME.scenes = [];
+                }
+                container.innerHTML = "";
+            }
+
+            if (window.THREE) window.THREE.Cache.clear();
+
+            document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, canvas').forEach(el => el.remove());
+
+            setTimeout(() => { isStoppingAR = false; screenLog("Cleanup Complete."); }, 500);
+        } catch (e) {
+            isStoppingAR = false;
+            console.error(e);
+        }
+    };
+
+    window.startARSession = function(mindFile, htmlContent) {
+        if (isStoppingAR) {
+            setTimeout(() => window.startARSession(mindFile, htmlContent), 400);
+            return;
+        }
+
+        const timestamp = Date.now();
+        const fullMindPath = mindFile + (mindFile.includes('?') ? '&' : '?') + "t=" + timestamp;
+        screenLog("Starting Session: " + fullMindPath);
+
+        try {
+            document.body.classList.add("ar-active");
+            document.getElementById("BackButton").style.display = "block";
+
+            const container = document.getElementById("ARContainer");
+            container.style.display = "block";
+
+            let finalHtml = htmlContent;
+            finalHtml = finalHtml.replace('<a-scene', '<a-scene id="scene-' + timestamp + '"');
+            finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
+            finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
+
+            container.innerHTML = finalHtml;
+
+            const sceneEl = container.querySelector('a-scene');
+            if (sceneEl) {
+                sceneEl.addEventListener('arReady', () => {
+                    screenLog("MindAR Ready (V66)");
+                    window.dispatchEvent(new Event('resize'));
+                });
+
+                sceneEl.addEventListener('targetFound', (e) => {
+                    const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
+                    screenLog("Target Found: " + idx);
+                    sceneEl.querySelectorAll('[mindar-image-target]').forEach(t => {
+                        const attr = t.getAttribute('mindar-image-target');
+                        let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
+                        if (isMatch) {
+                            t.setAttribute('visible', 'true');
+                            t.querySelectorAll('*').forEach(c => c.setAttribute('visible', 'true'));
+                        }
+                    });
+                });
+
+                sceneEl.addEventListener('targetLost', (e) => {
+                    const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
+                    sceneEl.querySelectorAll('[mindar-image-target]').forEach(t => {
+                        const attr = t.getAttribute('mindar-image-target');
+                        let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
+                        if (isMatch) t.setAttribute('visible', 'false');
+                    });
+                });
+
+                sceneEl.addEventListener('loaded', () => {
+                    setTimeout(() => {
+                        const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
+                        if (system) { system.start(); screenLog("Scanning..."); }
+                    }, 1000);
+                });
+            }
+        } catch (e) { screenLog("Start Error: " + e.message); }
+
+        if (arIntervalId) clearInterval(arIntervalId);
+        arIntervalId = setInterval(() => {
+            if (document.body.classList.contains('ar-active')) {
+                document.querySelectorAll('video:not(#arVideo)').forEach(v => {
+                    v.style.cssText = "width:100vw; height:100dvh; position:fixed; object-fit:cover; top:0; left:0;";
+                });
+            }
+        }, 500);
+    };
+
+    document.addEventListener('click', (e) => {
+        if (e.target.id === "BackButton") return;
+        if (document.body.classList.contains('ar-active') && !e.target.closest('#ComposeTarget > *')) {
+            document.body.classList.toggle('show-ui');
+        }
+    });
+</script>
+<script src="common.js"></script>
 </body>
 </html>

@@ -22,10 +22,12 @@
 * SOFTWARE.
 *
 */
+@file:OptIn(ExperimentalWasmJsInterop::class)
 @file:Suppress("MatchingDeclarationName")
 
 package template.common.util
 
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 
 actual object PlatformUtils {
@@ -38,4 +40,13 @@ actual object PlatformUtils {
     actual fun changeTheme(isDark: Boolean) {
         println("PlatformUtils Web: changeTheme to isDark=$isDark")
     }
+
+    actual fun hardReset() {
+        println("PlatformUtils Web: Hard Resetting...")
+        triggerHardReset()
+    }
 }
+
+@JsFun("() => { window.location.href = window.location.origin; }")
+external fun triggerHardReset()
+

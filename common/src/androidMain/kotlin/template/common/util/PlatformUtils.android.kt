@@ -46,4 +46,8 @@ actual object PlatformUtils {
             AppCompatDelegate.setDefaultNightMode(mode)
         }
     }
+
+    actual fun hardReset() {
+        // Not implemented for Android
+    }
 }

@@ -136,8 +136,8 @@
         }
     </style>
 
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js" crossorigin="anonymous"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 
@@ -156,11 +156,10 @@
 <div id="ComposeTarget"></div>
 
 <script>
-    // GLOBAL ERROR SUPPRESSOR - Added at the very top
+    // GLOBAL ERROR SUPPRESSOR
     let isStoppingAR = false;
     window.addEventListener('error', (e) => {
         if (isStoppingAR) {
-            console.log("Suppressed background error during AR cleanup");
             e.preventDefault();
             e.stopImmediatePropagation();
             return true;
@@ -179,7 +178,7 @@
         }
     }
 
-    screenLog("V47 Initializing...");
+    screenLog("V50 Initializing...");
 
     function onBackPressed() {
         screenLog("Back pressed");
@@ -204,22 +203,22 @@
     window.stopARSession = function() {
         if (isStoppingAR) return;
         isStoppingAR = true;
-        screenLog("Stopping AR (V47)...");
+        screenLog("Stopping AR (V50)...");
+
+        if (arIntervalId) {
+            clearInterval(arIntervalId);
+            arIntervalId = null;
+        }
 
         try {
-            if (arIntervalId) {
-                clearInterval(arIntervalId);
-                arIntervalId = null;
-            }
-
             document.body.classList.remove("ar-active");
             document.body.classList.remove("show-ui");
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            // 1. Stop all videos and camera streams immediately
+            // 1. Stop all videos and camera streams
             const videos = document.getElementsByTagName('video');
-            for (let i = 0; i < videos.length; i++) {
+            for (let i = videos.length - 1; i >= 0; i--) {
                 try {
                     const v = videos[i];
                     if (v.srcObject) {
@@ -230,77 +229,82 @@
                         v.srcObject = null;
                     }
                     v.pause();
+                    if (v.parentNode === document.body) {
+                        document.body.removeChild(v);
+                    }
                 } catch(e) {}
             }
 
-            // 2. Hide containers.
-            // WE DO NOT CLEAR innerHTML HERE ANYMORE to avoid the "Back" crash.
+            // 2. Stop MindAR System
             const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
             for (let i = 0; i < containers.length; i++) {
-                if (containers[i]) {
-                    containers[i].style.display = "none";
-                    // Gently pause the scene if it exists
+                const c = containers[i];
+                if (!c) continue;
+
+                const scene = c.querySelector('a-scene');
+                if (scene) {
                     try {
-                        const scene = containers[i].querySelector('a-scene');
-                        if (scene) scene.pause();
+                        if (scene.systems && scene.systems['mindar-image-system']) {
+                            scene.systems['mindar-image-system'].stop();
+                        }
+                        scene.pause();
                     } catch(e) {}
                 }
             }
 
-            // 3. Hide overlays
-            const overlays = document.querySelectorAll('.mindar-ui-overlay, .mindar-ui-loading, .a-canvas');
-            for (let i = 0; i < overlays.length; i++) {
-                try { overlays[i].style.display = 'none'; } catch(e) {}
+            // 3. Forcefully remove injected elements
+            const garbage = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, body > video, body > canvas, .a-loader-title');
+            for (let i = 0; i < garbage.length; i++) {
+                try {
+                    const el = garbage[i];
+                    if (el.parentNode) el.parentNode.removeChild(el);
+                } catch(e) {}
             }
 
-            // 4. Delay clearing DOM until well after the transition
-            setTimeout(() => {
-                try {
-                    screenLog("Performing deferred cleanup...");
-                    for (let i = 0; i < containers.length; i++) {
-                        const c = containers[i];
-                        if (c) {
-                            // Clear by setting a single space - sometimes safer than empty string
-                            c.innerHTML = " ";
-                        }
-                    }
-                    const bodyCanvases = document.querySelectorAll('body > .a-canvas');
-                    for (let i = 0; i < bodyCanvases.length; i++) {
-                        try { bodyCanvases[i].parentNode.removeChild(bodyCanvases[i]); } catch(e) {}
-                    }
-                } catch(e) {}
+            // 4. Clear containers
+            for (let i = 0; i < containers.length; i++) {
+                if (containers[i]) {
+                    containers[i].style.display = "none";
+                    try { containers[i].innerHTML = ""; } catch(e) {}
+                }
+            }
 
+            document.body.style.backgroundColor = "";
+            document.documentElement.style.backgroundColor = "";
+
+            setTimeout(() => {
                 isStoppingAR = false;
-                screenLog("Cleanup done (V47).");
-            }, 3000); // 3 seconds delay - plenty of time to be away from the screen
+                screenLog("Cleanup done (V50).");
+            }, 500);
 
         } catch (e) {
             isStoppingAR = false;
-            console.error("Cleanup error:", e);
+            console.error("Stop error:", e);
         }
     };
 
     window.startARSession = function(mindFile, htmlContent) {
-        // If we are still "stopping" (in the 3s window), we force clear now
         if (isStoppingAR) {
-            screenLog("Force clearing for new session...");
-            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
-            for (let i = 0; i < containers.length; i++) {
-                if(containers[i]) containers[i].innerHTML = "";
-            }
-            isStoppingAR = false;
+            screenLog("Waiting for cleanup...");
+            setTimeout(() => window.startARSession(mindFile, htmlContent), 200);
+            return;
         }
 
-        screenLog("Starting AR (V47): " + mindFile);
+        // Use absolute path for mindFile to ensure it loads
+        const fullMindPath = window.location.origin + mindFile;
+        screenLog("Starting AR (V50): " + fullMindPath);
 
         try {
             const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
             for (let i = 0; i < containers.length; i++) {
                 if(containers[i]) {
-                    try {
-                        containers[i].innerHTML = "";
-                    } catch(e) {}
+                    containers[i].innerHTML = "";
+                    containers[i].style.display = "none";
                 }
+            }
+            const extra = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, body > video, body > canvas');
+            for (let i = 0; i < extra.length; i++) {
+                try { extra[i].parentNode.removeChild(extra[i]); } catch(e) {}
             }
         } catch(e) {}
 
@@ -313,13 +317,16 @@
             const container = document.getElementById("ARContainer");
             if (container) {
                 container.style.display = "block";
-                container.innerHTML = htmlContent;
+
+                // Modify htmlContent to use fullMindPath and enable scanning UI for debug
+                let finalHtml = htmlContent.replace(/imageTargetSrc:\s*[^;]+;/, "imageTargetSrc: " + fullMindPath + "; uiScanning: yes; uiLoading: yes;");
+                container.innerHTML = finalHtml;
 
                 const sceneEl = container.querySelector('a-scene');
                 if (sceneEl) {
                     sceneEl.addEventListener('arReady', () => {
-                        screenLog("MindAR Ready");
-                        setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+                        screenLog("MindAR Ready (V50)");
+                        setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
                     });
                     sceneEl.addEventListener('arError', (e) => {
                         screenLog("AR Error: " + (e.detail ? e.detail.error : "unknown"));
@@ -343,10 +350,8 @@
         if (arIntervalId) clearInterval(arIntervalId);
         arIntervalId = setInterval(() => {
             const composeCanvases = document.querySelectorAll('#ComposeTarget canvas');
-            if (composeCanvases.length > 0) {
-                for (let i = 0; i < composeCanvases.length; i++) {
-                    try { composeCanvases[i].style.backgroundColor = "transparent"; } catch(e) {}
-                }
+            for (let i = 0; i < composeCanvases.length; i++) {
+                try { composeCanvases[i].style.backgroundColor = "transparent"; } catch(e) {}
             }
 
             if (document.body.classList.contains('ar-active')) {

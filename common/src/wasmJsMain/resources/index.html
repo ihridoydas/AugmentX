@@ -35,13 +35,11 @@
             pointer-events: auto;
         }
 
-        /* When AR is active, hide UI by default to show camera */
         body.ar-active #ComposeTarget {
             opacity: 0;
             pointer-events: none;
         }
 
-        /* When user wants to see UI during AR */
         body.ar-active.show-ui #ComposeTarget {
             opacity: 1;
             pointer-events: auto;
@@ -53,40 +51,27 @@
             left: 0;
             right: 0;
             bottom: 0;
-
             width: 100%;
             height: 100dvh;
-
             z-index: 1;
             display: none;
             overflow: hidden;
             background: transparent;
         }
 
-        #ViewerContainer:not(:empty) {
-            display: block !important;
-        }
-
         #LogContainer {
             position: fixed;
             bottom: 0;
             left: 0;
-
             width: 100%;
             max-height: 80px;
-
             background: rgba(0,0,0,0.5);
             color: #0f0;
-
             font-family: monospace;
             font-size: 10px;
-
             overflow-y: auto;
-
             z-index: 1000;
-
             pointer-events: none;
-
             padding: 5px;
             box-sizing: border-box;
         }
@@ -108,7 +93,6 @@
             display: none;
         }
 
-        /* Background Camera Feed ONLY */
         video:not(#arVideo) {
             position: fixed !important;
             top: 0 !important;
@@ -120,10 +104,7 @@
             margin: 0 !important;
         }
 
-        /* AR Content Video */
-        #arVideo {
-            display: none;
-        }
+        #arVideo { display: none; }
 
         canvas.a-canvas {
             position: fixed !important;
@@ -142,236 +123,155 @@
 </head>
 
 <body>
-
-<button id="BackButton" onclick="onBackPressed()">
-    ← Back
-</button>
-
-<div id="LogContainer">
-    Initializing...<br>
-</div>
-
+<button id="BackButton" onclick="onBackPressed()">← Back</button>
+<div id="LogContainer">Initializing...<br></div>
 <div id="ARContainer"></div>
 <div id="ViewerContainer"></div>
 <div id="ComposeTarget"></div>
 
 <script>
-    // GLOBAL ERROR SUPPRESSOR
     let isStoppingAR = false;
-    window.addEventListener('error', (e) => {
-        if (isStoppingAR) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            return true;
-        }
-    }, true);
+    let arIntervalId = null;
 
     function screenLog(msg) {
-        try {
-            const log = document.getElementById("LogContainer");
-            if (!log) return;
+        const log = document.getElementById("LogContainer");
+        if (log) {
             log.innerHTML += "> " + msg + "<br>";
             log.scrollTop = log.scrollHeight;
-            console.log("LOG: " + msg);
-        } catch (e) {
-            console.error("screenLog error:", e);
         }
+        console.log("LOG: " + msg);
     }
 
-    screenLog("V65 Initializing (Hard Reset on Back)...");
+    screenLog("V66 - Stable AR Re-entry");
 
     function onBackPressed() {
-        screenLog("Back pressed - Reloading Browser...");
+        screenLog("Back pressed - Surgical Cleanup...");
         try {
-            // Stop AR session if active
             if (window.stopARSession) window.stopARSession();
 
-            // Wait briefly for tracks to stop then hard reload to origin
+            // Allow time for cleanup then navigate back in KMP
             setTimeout(() => {
-                window.location.href = window.location.origin;
-            }, 400);
+                if (window.kmpBridge && typeof window.kmpBridge.onBackPressed === "function") {
+                    window.kmpBridge.onBackPressed();
+                } else {
+                    history.back();
+                }
+            }, 300);
         } catch (e) {
-            window.location.href = window.location.origin;
+            window.location.reload();
         }
     }
-
-    let arIntervalId = null;
 
     window.stopARSession = function() {
         if (isStoppingAR) return;
         isStoppingAR = true;
-        screenLog("Stopping AR (V65)...");
+        screenLog("Stopping AR Session...");
 
-        if (arIntervalId) {
-            clearInterval(arIntervalId);
-            arIntervalId = null;
-        }
+        if (arIntervalId) clearInterval(arIntervalId);
 
         try {
-            document.body.classList.remove("ar-active");
-            document.body.classList.remove("show-ui");
+            document.body.classList.remove("ar-active", "show-ui");
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            // 1. Stop all video tracks
-            const videos = document.querySelectorAll('video');
-            videos.forEach(v => {
-                try {
-                    if (v.srcObject) {
-                        v.srcObject.getTracks().forEach(t => t.stop());
-                        v.srcObject = null;
-                    }
-                    v.pause();
-                    v.removeAttribute('src');
-                    v.load();
-                    v.remove();
-                } catch(e) {}
+            // 1. Kill Camera Tracks
+            document.querySelectorAll('video').forEach(v => {
+                if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+                v.pause();
+                v.remove();
             });
 
-            // 2. Stop MindAR System
+            // 2. Destroy Scene
             const container = document.getElementById("ARContainer");
             if (container) {
                 const scene = container.querySelector('a-scene');
                 if (scene) {
-                    try {
-                        if (scene.systems && scene.systems['mindar-image-system']) {
-                            scene.systems['mindar-image-system'].stop();
-                        }
-                        scene.pause();
-                        if (scene.renderer) scene.renderer.dispose();
-                        if (window.AFRAME) window.AFRAME.scenes = [];
-                        scene.parentNode.removeChild(scene);
-                    } catch(e) {}
+                    if (scene.systems && scene.systems['mindar-image-system']) scene.systems['mindar-image-system'].stop();
+                    scene.pause();
+                    if (scene.renderer) scene.renderer.dispose();
+                    if (window.AFRAME) window.AFRAME.scenes = [];
                 }
                 container.innerHTML = "";
             }
 
-            // 3. Clear Caches
-            if (window.THREE && window.THREE.Cache) window.THREE.Cache.clear();
+            if (window.THREE) window.THREE.Cache.clear();
 
-            // 4. Remove all leftovers
-            const garbage = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, video, canvas, .a-loader-title, .a-enter-vr, .a-enter-ar');
-            garbage.forEach(el => { try { el.remove(); } catch(e) {} });
+            document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, canvas').forEach(el => el.remove());
 
-            setTimeout(() => {
-                isStoppingAR = false;
-                screenLog("Cleanup done (V65).");
-            }, 600);
-
+            setTimeout(() => { isStoppingAR = false; screenLog("Cleanup Complete."); }, 500);
         } catch (e) {
             isStoppingAR = false;
-            console.error("Stop error:", e);
+            console.error(e);
         }
     };
 
     window.startARSession = function(mindFile, htmlContent) {
         if (isStoppingAR) {
-            screenLog("Waiting for cleanup...");
             setTimeout(() => window.startARSession(mindFile, htmlContent), 400);
             return;
         }
 
         const timestamp = Date.now();
         const fullMindPath = mindFile + (mindFile.includes('?') ? '&' : '?') + "t=" + timestamp;
-        screenLog("Starting AR (V65): " + fullMindPath);
+        screenLog("Starting Session: " + fullMindPath);
 
         try {
             document.body.classList.add("ar-active");
-            document.body.classList.remove("show-ui");
-            const backBtn = document.getElementById("BackButton");
-            if (backBtn) backBtn.style.display = "block";
+            document.getElementById("BackButton").style.display = "block";
 
             const container = document.getElementById("ARContainer");
-            if (container) {
-                container.style.display = "block";
+            container.style.display = "block";
 
-                // 1. Prepare HTML with unique IDs
-                let finalHtml = htmlContent;
-                finalHtml = finalHtml.replace('<a-scene', '<a-scene id="scene-' + timestamp + '"');
-                finalHtml = finalHtml.replace(/id="targetModel(\d+)"/g, 'id="targetModel$1-' + timestamp + '"');
-                finalHtml = finalHtml.replace(/src="#targetModel(\d+)"/g, 'src="#targetModel$1-' + timestamp + '"');
-                finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
-                finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
+            let finalHtml = htmlContent;
+            finalHtml = finalHtml.replace('<a-scene', '<a-scene id="scene-' + timestamp + '"');
+            finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
+            finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
 
-                const lights = `
-                    <a-entity light="type: ambient; color: #BBB; intensity: 1.5"></a-entity>
-                    <a-entity light="type: directional; color: #FFF; intensity: 1.0" position="-1 2 4"></a-entity>
-                `;
-                finalHtml = finalHtml.replace("</a-scene>", lights + "</a-scene>");
+            container.innerHTML = finalHtml;
 
-                screenLog("Injecting New Scene...");
-                container.innerHTML = finalHtml;
+            const sceneEl = container.querySelector('a-scene');
+            if (sceneEl) {
+                sceneEl.addEventListener('arReady', () => {
+                    screenLog("MindAR Ready (V66)");
+                    window.dispatchEvent(new Event('resize'));
+                });
 
-                const sceneEl = container.querySelector('a-scene');
-                if (sceneEl) {
-                    sceneEl.addEventListener('arReady', () => {
-                        screenLog("MindAR Ready (V65)");
-                        window.dispatchEvent(new Event('resize'));
+                sceneEl.addEventListener('targetFound', (e) => {
+                    const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
+                    screenLog("Target Found: " + idx);
+                    sceneEl.querySelectorAll('[mindar-image-target]').forEach(t => {
+                        const attr = t.getAttribute('mindar-image-target');
+                        let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
+                        if (isMatch) {
+                            t.setAttribute('visible', 'true');
+                            t.querySelectorAll('*').forEach(c => c.setAttribute('visible', 'true'));
+                        }
                     });
+                });
 
-                    sceneEl.addEventListener('targetFound', (e) => {
-                        const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
-                        screenLog("Target Found: " + idx);
-                        const targets = sceneEl.querySelectorAll('[mindar-image-target]');
-                        targets.forEach(t => {
-                            const attr = t.getAttribute('mindar-image-target');
-                            let isMatch = false;
-                            if (typeof attr === 'string') {
-                                isMatch = attr.replace(/\s/g, '').includes("targetIndex:" + idx);
-                            } else if (attr && typeof attr.targetIndex !== 'undefined') {
-                                isMatch = (attr.targetIndex == idx);
-                            }
-
-                            if (isMatch) {
-                                screenLog("Showing entity " + idx);
-                                t.setAttribute('visible', 'true');
-                                t.querySelectorAll('*').forEach(child => child.setAttribute('visible', 'true'));
-                            }
-                        });
+                sceneEl.addEventListener('targetLost', (e) => {
+                    const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
+                    sceneEl.querySelectorAll('[mindar-image-target]').forEach(t => {
+                        const attr = t.getAttribute('mindar-image-target');
+                        let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
+                        if (isMatch) t.setAttribute('visible', 'false');
                     });
+                });
 
-                    sceneEl.addEventListener('targetLost', (e) => {
-                        const idx = (e.detail && e.detail.targetIndex !== undefined) ? e.detail.targetIndex : 0;
-                        screenLog("Target Lost: " + idx);
-                        const targets = sceneEl.querySelectorAll('[mindar-image-target]');
-                        targets.forEach(t => {
-                            const attr = t.getAttribute('mindar-image-target');
-                            let isMatch = false;
-                            if (typeof attr === 'string') {
-                                isMatch = attr.replace(/\s/g, '').includes("targetIndex:" + idx);
-                            } else if (attr && typeof attr.targetIndex !== 'undefined') {
-                                isMatch = (attr.targetIndex == idx);
-                            }
-                            if (isMatch) t.setAttribute('visible', 'false');
-                        });
-                        const video = document.getElementById("arVideo");
-                        if (video) video.pause();
-                    });
-
-                    sceneEl.addEventListener('loaded', () => {
-                        screenLog("A-Frame Loaded");
-                        setTimeout(() => {
-                            const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
-                            if (system) {
-                                system.start();
-                                screenLog("Scanning Started");
-                            }
-                        }, 1000);
-                    });
-                }
+                sceneEl.addEventListener('loaded', () => {
+                    setTimeout(() => {
+                        const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
+                        if (system) { system.start(); screenLog("Scanning..."); }
+                    }, 1000);
+                });
             }
-        } catch (e) {
-            screenLog("Start Error: " + e.message);
-        }
+        } catch (e) { screenLog("Start Error: " + e.message); }
 
         if (arIntervalId) clearInterval(arIntervalId);
         arIntervalId = setInterval(() => {
             if (document.body.classList.contains('ar-active')) {
-                const bgVideos = document.querySelectorAll('video:not(#arVideo)');
-                bgVideos.forEach(v => {
-                    v.style.width = "100vw"; v.style.height = "100dvh";
-                    v.style.position = "fixed"; v.style.objectFit = "cover";
-                    v.style.top = "0"; v.style.left = "0";
+                document.querySelectorAll('video:not(#arVideo)').forEach(v => {
+                    v.style.cssText = "width:100vw; height:100dvh; position:fixed; object-fit:cover; top:0; left:0;";
                 });
             }
         }, 500);
@@ -379,8 +279,7 @@
 
     document.addEventListener('click', (e) => {
         if (e.target.id === "BackButton") return;
-        if (document.body.classList.contains('ar-active')) {
-            if (e.target.closest('#ComposeTarget > *')) return;
+        if (document.body.classList.contains('ar-active') && !e.target.closest('#ComposeTarget > *')) {
             document.body.classList.toggle('show-ui');
         }
     });

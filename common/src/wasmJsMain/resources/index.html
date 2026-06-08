@@ -229,6 +229,13 @@
 
             container.innerHTML = finalHtml;
 
+            const video = container.querySelector('#arVideo');
+            if (video) {
+                video.addEventListener('loadeddata', () => screenLog("Video Loaded Data"));
+                video.addEventListener('canplaythrough', () => screenLog("Video Can Play Through"));
+                video.addEventListener('error', (e) => screenLog("Video Error: " + (video.error ? video.error.message : "Unknown")));
+            }
+
             const sceneEl = container.querySelector('a-scene');
             if (sceneEl) {
                 sceneEl.addEventListener('arReady', () => {
@@ -247,6 +254,25 @@
                             t.querySelectorAll('*').forEach(c => c.setAttribute('visible', 'true'));
                         }
                     });
+
+                    // Start video if it's the target
+                    const video = document.getElementById("arVideo");
+                    if (video) {
+                        screenLog("Target Found - Video State: " + video.readyState);
+                        // Force un-mute and play for muted autoplay
+                        video.muted = true;
+                        video.play().then(() => {
+                            screenLog("Video playing successfully");
+                        }).catch(err => {
+                            screenLog("Autoplay failed: " + err.message + ". Tap screen to play.");
+                            // Add a one-time global click listener to start the video
+                            const forcePlay = () => {
+                                video.play().then(() => screenLog("Video started by click")).catch(e => screenLog("Click play failed: " + e.message));
+                            };
+                            document.addEventListener('click', forcePlay, { once: true });
+                            document.addEventListener('touchstart', forcePlay, { once: true });
+                        });
+                    }
                 });
 
                 sceneEl.addEventListener('targetLost', (e) => {
@@ -256,6 +282,10 @@
                         let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
                         if (isMatch) t.setAttribute('visible', 'false');
                     });
+
+                    // Pause video
+                    const video = document.getElementById("arVideo");
+                    if (video && !video.paused) video.pause();
                 });
 
                 sceneEl.addEventListener('loaded', () => {

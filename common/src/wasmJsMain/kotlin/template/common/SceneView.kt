@@ -153,10 +153,10 @@ actual fun SceneView(
 
                     val html = """
                         <a-scene 
-                            mindar-image="imageTargetSrc: $mindFile; autoStart: true; uiScanning: no; uiLoading: no;" 
+                            mindar-image="imageTargetSrc: $mindFile; autoStart: true; uiScanning: yes; uiLoading: yes;" 
                             embedded="false"
                             background="transparent: true"
-                            renderer="alpha: true; colorManagement: true;"
+                            renderer="alpha: true; colorManagement: true; antialias: true; logarithmicDepthBuffer: true;"
                             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
                             style="width: 100vw; height: 100vh; background: transparent;">
                             <a-assets>${modelAssets.joinToString("")}</a-assets>

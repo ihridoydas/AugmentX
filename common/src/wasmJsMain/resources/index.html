@@ -178,7 +178,7 @@
         }
     }
 
-    screenLog("V50 Initializing...");
+    screenLog("V58 Initializing...");
 
     function onBackPressed() {
         screenLog("Back pressed");
@@ -203,7 +203,7 @@
     window.stopARSession = function() {
         if (isStoppingAR) return;
         isStoppingAR = true;
-        screenLog("Stopping AR (V50)...");
+        screenLog("Stopping AR (V58)...");
 
         if (arIntervalId) {
             clearInterval(arIntervalId);
@@ -216,66 +216,55 @@
             const backBtn = document.getElementById("BackButton");
             if (backBtn) backBtn.style.display = "none";
 
-            // 1. Stop all videos and camera streams
-            const videos = document.getElementsByTagName('video');
-            for (let i = videos.length - 1; i >= 0; i--) {
-                try {
-                    const v = videos[i];
-                    if (v.srcObject) {
-                        const tracks = v.srcObject.getTracks();
-                        for(let j=0; j<tracks.length; j++) {
-                            try { tracks[j].stop(); } catch(e) {}
-                        }
-                        v.srcObject = null;
-                    }
-                    v.pause();
-                    if (v.parentNode === document.body) {
-                        document.body.removeChild(v);
-                    }
-                } catch(e) {}
-            }
-
-            // 2. Stop MindAR System
-            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
-            for (let i = 0; i < containers.length; i++) {
-                const c = containers[i];
-                if (!c) continue;
-
-                const scene = c.querySelector('a-scene');
+            // 1. Stop MindAR System
+            const container = document.getElementById("ARContainer");
+            if (container) {
+                const scene = container.querySelector('a-scene');
                 if (scene) {
                     try {
+                        screenLog("Stopping Scene...");
                         if (scene.systems && scene.systems['mindar-image-system']) {
                             scene.systems['mindar-image-system'].stop();
                         }
                         scene.pause();
+                        if (scene.parentNode) scene.parentNode.removeChild(scene);
                     } catch(e) {}
                 }
+                container.innerHTML = "";
             }
 
-            // 3. Forcefully remove injected elements
-            const garbage = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, body > video, body > canvas, .a-loader-title');
-            for (let i = 0; i < garbage.length; i++) {
+            // 2. Stop camera
+            const allVideos = document.querySelectorAll('video');
+            for (let i = 0; i < allVideos.length; i++) {
                 try {
-                    const el = garbage[i];
-                    if (el.parentNode) el.parentNode.removeChild(el);
+                    const v = allVideos[i];
+                    if (v.srcObject) {
+                        v.srcObject.getTracks().forEach(t => t.stop());
+                        v.srcObject = null;
+                    }
+                    v.pause();
+                    v.remove();
                 } catch(e) {}
             }
 
-            // 4. Clear containers
-            for (let i = 0; i < containers.length; i++) {
-                if (containers[i]) {
-                    containers[i].style.display = "none";
-                    try { containers[i].innerHTML = ""; } catch(e) {}
+            // 3. Clear A-Frame Globals
+            if (window.AFRAME) {
+                if (window.AFRAME.scenes) {
+                    window.AFRAME.scenes.forEach(s => {
+                        try { if(s.parentNode) s.parentNode.removeChild(s); } catch(e) {}
+                    });
+                    window.AFRAME.scenes = [];
                 }
             }
 
-            document.body.style.backgroundColor = "";
-            document.documentElement.style.backgroundColor = "";
+            // 4. Remove all leftovers
+            const garbage = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, .mindar-ui-loading, video, canvas, .a-loader-title, .a-enter-vr, .a-enter-ar');
+            garbage.forEach(el => { try { el.remove(); } catch(e) {} });
 
             setTimeout(() => {
                 isStoppingAR = false;
-                screenLog("Cleanup done (V50).");
-            }, 500);
+                screenLog("Cleanup done (V58).");
+            }, 1200);
 
         } catch (e) {
             isStoppingAR = false;
@@ -286,27 +275,14 @@
     window.startARSession = function(mindFile, htmlContent) {
         if (isStoppingAR) {
             screenLog("Waiting for cleanup...");
-            setTimeout(() => window.startARSession(mindFile, htmlContent), 200);
+            setTimeout(() => window.startARSession(mindFile, htmlContent), 500);
             return;
         }
 
-        // Use absolute path for mindFile to ensure it loads
-        const fullMindPath = window.location.origin + mindFile;
-        screenLog("Starting AR (V50): " + fullMindPath);
-
-        try {
-            const containers = [document.getElementById("ARContainer"), document.getElementById("ViewerContainer")];
-            for (let i = 0; i < containers.length; i++) {
-                if(containers[i]) {
-                    containers[i].innerHTML = "";
-                    containers[i].style.display = "none";
-                }
-            }
-            const extra = document.querySelectorAll('.a-canvas, .mindar-ui-overlay, body > video, body > canvas');
-            for (let i = 0; i < extra.length; i++) {
-                try { extra[i].parentNode.removeChild(extra[i]); } catch(e) {}
-            }
-        } catch(e) {}
+        const timestamp = Date.now();
+        // Use path without origin and add cache buster
+        const fullMindPath = mindFile + "?t=" + timestamp;
+        screenLog("Starting AR (V58): " + fullMindPath);
 
         try {
             document.body.classList.add("ar-active");
@@ -318,34 +294,98 @@
             if (container) {
                 container.style.display = "block";
 
-                // Modify htmlContent to use fullMindPath and enable scanning UI for debug
-                let finalHtml = htmlContent.replace(/imageTargetSrc:\s*[^;]+;/, "imageTargetSrc: " + fullMindPath + "; uiScanning: yes; uiLoading: yes;");
+                // 1. Process HTML
+                let finalHtml = htmlContent;
+
+                // Force mindar settings and add cache buster
+                finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
+
+                // Add timestamp to any src="..." that looks like an asset (not starting with #)
+                finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
+
+                // Add Lights
+                const lights = `
+                    <a-entity light="type: ambient; color: #BBB; intensity: 1.5"></a-entity>
+                    <a-entity light="type: directional; color: #FFF; intensity: 1.0" position="-1 2 4"></a-entity>
+                `;
+                finalHtml = finalHtml.replace("</a-scene>", lights + "</a-scene>");
+
+                screenLog("Injecting HTML...");
                 container.innerHTML = finalHtml;
 
                 const sceneEl = container.querySelector('a-scene');
                 if (sceneEl) {
                     sceneEl.addEventListener('arReady', () => {
-                        screenLog("MindAR Ready (V50)");
-                        setTimeout(() => window.dispatchEvent(new Event('resize')), 200);
+                        screenLog("MindAR Ready (V58)");
+                        setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
                     });
-                    sceneEl.addEventListener('arError', (e) => {
-                        screenLog("AR Error: " + (e.detail ? e.detail.error : "unknown"));
-                    });
+
                     sceneEl.addEventListener('targetFound', (e) => {
-                        screenLog("Found Target: " + (e.detail ? e.detail.targetIndex : "0"));
+                        const idx = e.detail ? e.detail.targetIndex : 0;
+                        screenLog("Target Found: " + idx);
+
+                        const targets = sceneEl.querySelectorAll('[mindar-image-target]');
+                        for (let i = 0; i < targets.length; i++) {
+                            const t = targets[i];
+                            const attrValue = t.getAttribute('mindar-image-target');
+                            if (attrValue) {
+                                // Safe check for targetIndex
+                                const attrStr = String(attrValue).replace(/\s/g, '');
+                                if (attrStr.indexOf("targetIndex:" + idx) !== -1) {
+                                    screenLog("Showing entity " + idx);
+                                    t.setAttribute('visible', 'true');
+                                    const models = t.querySelectorAll('a-gltf-model');
+                                    for (let j = 0; j < models.length; j++) {
+                                        models[j].setAttribute('visible', 'true');
+                                    }
+                                }
+                            }
+                        }
+
                         const video = document.getElementById("arVideo");
-                        if (video) video.play().catch(err => screenLog("Play failed: " + err.message));
+                        if (video) video.play().catch(e => {});
                     });
+
                     sceneEl.addEventListener('targetLost', () => {
-                        screenLog("Lost Target");
+                        screenLog("Target Lost");
                         const video = document.getElementById("arVideo");
                         if (video) video.pause();
+                    });
+
+                    const models = container.querySelectorAll('a-gltf-model');
+                    models.forEach((m, idx) => {
+                        m.addEventListener('model-loaded', () => {
+                            screenLog("Model " + idx + " Loaded");
+                            m.setAttribute('visible', 'true');
+                        });
+                        m.addEventListener('model-error', (e) => screenLog("Model Load Error"));
+                    });
+
+                    sceneEl.addEventListener('loaded', () => {
+                        screenLog("A-Frame Loaded");
+                        setTimeout(() => {
+                            if (sceneEl.systems && sceneEl.systems['mindar-image-system']) {
+                                const system = sceneEl.systems['mindar-image-system'];
+                                screenLog("System Scanning: " + system.isScanning);
+                                if (!system.isScanning) {
+                                    screenLog("Forcing start...");
+                                    system.start();
+                                }
+                            }
+                        }, 2500);
                     });
                 }
             }
         } catch (e) {
             screenLog("Start Error: " + e.message);
         }
+
+
+
+
+
+
+
 
         if (arIntervalId) clearInterval(arIntervalId);
         arIntervalId = setInterval(() => {

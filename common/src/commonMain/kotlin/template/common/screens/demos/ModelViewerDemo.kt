@@ -20,7 +20,7 @@ import template.common.generated.resources.category_3d
 fun ModelViewerDemo(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
+        containerColor = Color.Transparent, // Essential for Web visibility
         topBar = {
             AppBar(
                 title = stringResource(Res.string.category_3d) + ": Model Viewer",
@@ -32,7 +32,7 @@ fun ModelViewerDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb"
             )
         }
     }

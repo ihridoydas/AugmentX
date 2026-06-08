@@ -47,7 +47,12 @@ import template.navigation.ScreenDestinations
 
 @Composable
 fun DemoScreen(id: String, navigator: Navigator) {
-    val onBack = { navigator.goBack() }
+    val onBack = { 
+        if (id.startsWith("ar-")) {
+            template.common.util.PlatformUtils.hardReset()
+        }
+        navigator.goBack() 
+    }
     when (id) {
         "model-viewer" -> ModelViewerDemo(onBack)
         "geometry" -> GeometryDemo(onBack)

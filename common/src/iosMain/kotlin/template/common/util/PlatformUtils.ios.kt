@@ -43,4 +43,8 @@ actual object PlatformUtils {
     actual fun changeTheme(isDark: Boolean) {
         // No-op or implementation if needed for iOS
     }
+
+    actual fun hardReset() {
+        // iOS doesn't need a hard browser reset
+    }
 }

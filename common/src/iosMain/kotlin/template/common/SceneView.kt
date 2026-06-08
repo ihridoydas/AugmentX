@@ -1,17 +1,12 @@
 package template.common
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.multiplatform.webview.web.WebView
 import com.multiplatform.webview.web.rememberWebViewStateWithHTMLData
 import io.ktor.client.HttpClient
@@ -27,35 +22,41 @@ import platform.Foundation.NSURL
 import platform.Foundation.dataWithBytes
 import platform.Foundation.writeToURL
 import platform.ModelIO.MDLAsset
-import platform.SceneKit.SCNCamera
-import platform.SceneKit.SCNLight
-import platform.SceneKit.SCNLightTypeAmbient
-import platform.SceneKit.SCNLightTypeOmni
-import platform.SceneKit.SCNNode
-import platform.SceneKit.SCNScene
-import platform.SceneKit.SCNSceneSource
-import platform.SceneKit.SCNVector3Make
-import platform.SceneKit.SCNView
-import platform.SceneKit.sceneWithMDLAsset
+import platform.SceneKit.*
 import platform.UIKit.UIColor
 import androidx.compose.ui.interop.UIKitView
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun SceneView(
     modifier: Modifier,
-    modelUrl: String?
+    modelUrl: String?,
+    modelUrls: List<String>,
+    isAR: Boolean,
+    autoRotate: Boolean,
+    skyboxUrl: String?,
+    onModelLoaded: () -> Unit
 ) {
+    val allUrls = remember(modelUrl, modelUrls) {
+        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    }
+    
     val client = remember { HttpClient(Darwin) }
     var scene by remember { mutableStateOf<SCNScene?>(null) }
     var isCheckingNative by remember { mutableStateOf(false) }
     var nativeFailed by remember { mutableStateOf(false) }
+    var showLoader by remember(allUrls) { mutableStateOf(allUrls.isNotEmpty()) }
 
-    LaunchedEffect(modelUrl) {
-        if (modelUrl != null) {
+    LaunchedEffect(allUrls) {
+        if (allUrls.isNotEmpty()) {
             isCheckingNative = true
+            showLoader = true
             try {
-                val bytes = client.get(modelUrl).readRawBytes()
+                // For iOS native, we currently only support the first model
+                // due to complexity of merging multiple SCNScenes in this wrapper.
+                val firstUrl = allUrls.first()
+                val bytes = client.get(firstUrl).readRawBytes()
                 val nsData = bytes.usePinned { pinned ->
                     NSData.dataWithBytes(pinned.addressOf(0), bytes.size.toULong())
                 }
@@ -102,21 +103,29 @@ actual fun SceneView(
                     
                     scene = finalScene
                     nativeFailed = false
+                    showLoader = false
+                    onModelLoaded()
                 } else {
                     nativeFailed = true
                 }
-                isCheckingNative = false
             } catch (ignored: Exception) {
                 nativeFailed = true
+            } finally {
                 isCheckingNative = false
             }
         }
     }
 
+    // Safety timeout for loader
+    LaunchedEffect(allUrls) {
+        if (allUrls.isNotEmpty()) {
+            delay(10000)
+            showLoader = false
+        }
+    }
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (isCheckingNative) {
-            CircularProgressIndicator(color = Color.White)
-        } else if (!nativeFailed && scene != null) {
+        if (!isCheckingNative && !nativeFailed && scene != null && !isAR) {
             UIKitView(
                 factory = {
                     SCNView().apply {
@@ -126,10 +135,15 @@ actual fun SceneView(
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
-                update = { view -> view.scene = scene }
+                update = { view -> 
+                    view.scene = scene 
+                }
             )
-        } else if (modelUrl != null) {
-            val html = remember(modelUrl) {
+        } else if (allUrls.isNotEmpty() && !isCheckingNative) {
+            val html = remember(allUrls, isAR, autoRotate) {
+                val modelsHtml = allUrls.joinToString("\n") { url ->
+                    """<model-viewer src="$url" ${if (autoRotate) "auto-rotate" else ""} camera-controls shadow-intensity="1" ${if (isAR) "ar" else ""} style="width:100%; height:100%; position:absolute; top:0; left:0;"></model-viewer>"""
+                }
                 """
                 <!DOCTYPE html>
                 <html>
@@ -139,11 +153,13 @@ actual fun SceneView(
                     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
                     <style>
                         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: black; overflow: hidden; }
-                        model-viewer { width: 100%; height: 100%; background-color: black; }
+                        #container { width: 100%; height: 100%; position: relative; }
                     </style>
                 </head>
                 <body>
-                    <model-viewer src="$modelUrl" auto-rotate camera-controls shadow-intensity="1" ar></model-viewer>
+                    <div id="container">
+                        $modelsHtml
+                    </div>
                 </body>
                 </html>
             """.trimIndent()
@@ -153,8 +169,20 @@ actual fun SceneView(
             WebView(state = state, modifier = Modifier.fillMaxSize())
 
             if (state.isLoading) {
-                CircularProgressIndicator(color = Color(0xFFDAA520))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                    color = Color(0xFFDAA520),
+                    trackColor = Color.Transparent
+                )
             }
+        }
+
+        if (showLoader && (isCheckingNative || (nativeFailed && allUrls.isNotEmpty()))) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.TopCenter),
+                color = Color(0xFFDAA520),
+                trackColor = Color.Transparent
+            )
         }
     }
 }

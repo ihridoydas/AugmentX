@@ -76,6 +76,7 @@ kotlin {
                 implementation(libs.androidx.core.ktx)
                 implementation(libs.ktor.client.android)
                 implementation(libs.sceneview)
+                implementation(libs.arsceneview)
             }
         }
         val androidUnitTest by getting {

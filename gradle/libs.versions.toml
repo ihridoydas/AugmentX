@@ -161,6 +161,7 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 sceneview = { module = "io.github.sceneview:sceneview", version.ref = "sceneview" }
+arsceneview = { module = "io.github.sceneview:arsceneview", version.ref = "sceneview" }
 sceneview-core = { module = "io.github.sceneview:sceneview-core", version.ref = "sceneview" }
 sceneview-web = { module = "io.github.sceneview:sceneview-web", version.ref = "sceneview" }
 kcef = { module = "dev.datlag:kcef", version.ref = "kcef" }

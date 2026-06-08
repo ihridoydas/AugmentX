@@ -13,24 +13,22 @@ import template.common.SceneView
 import template.common.components.AppBar
 
 @Composable
-fun GeometryDemo(onBack: () -> Unit) {
+fun CollisionDemo(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
             AppBar(
-                title = "3D Geometry",
+                title = "Collision Detection",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            // In a real implementation, we would use SceneView API to create custom meshes.
-            // Here we show a model that represents complex geometry.
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
+                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
             )
 
             Card(
@@ -40,7 +38,7 @@ fun GeometryDemo(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Creating 3D shapes (Cubes, Spheres, Custom Meshes).",
+                    text = "Detecting when 3D objects intersect in space.",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

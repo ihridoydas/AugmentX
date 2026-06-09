@@ -26,33 +26,87 @@ package template.common.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.get
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
+import io.ktor.http.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class Post(val userId: Int, val id: Int, val title: String, val body: String)
 
 @Serializable
+data class ManagedARItem(
+    val id: String,
+    val name: String,
+    val targetImageUrl: String,
+    val contentUrl: String,
+    val mindUrl: String,
+    val isVideo: Boolean,
+    val createdAt: Long = 0
+)
+
+@Serializable
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 class ApiService(private val client: HttpClient) {
+    private val baseUrl = "http://localhost:8080"
+    
+    // Mock local list for UI persistence, but actions hit the real backend
+    private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
+    val managedItems: StateFlow<List<ManagedARItem>> = _managedItems.asStateFlow()
+
     suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
 
     suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
-        // In a real scenario, we'd fetch the blobs and upload them as multipart
-        // For this implementation, we simulate the backend call
-        kotlinx.coroutines.delay(3000)
-        return CompileResponse(
-            targetId = "target_${name ?: "gen"}_${kotlin.random.Random.nextInt(1000)}",
-            mindUrl = "https://example.com/targets/compiled.mind" 
+        // In KMP Web, imageBlobUrl is a browser blob URL (e.g. blob:http://...)
+        // To upload it to a real backend, we must first fetch the bytes of that blob.
+        
+        val imageBytes = client.get(imageBlobUrl).body<ByteArray>()
+        val contentBytes = client.get(contentBlobUrl).body<ByteArray>()
+
+        val response: CompileResponse = client.submitFormWithBinaryData(
+            url = "$baseUrl/compile",
+            formData = formData {
+                append("name", name ?: "Unnamed")
+                append("image", imageBytes, Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
+                })
+                append("content", contentBytes, Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
+                })
+            }
+        ).body()
+
+        val newItem = ManagedARItem(
+            id = response.targetId,
+            name = name ?: "Unnamed Target",
+            targetImageUrl = imageBlobUrl, // Keeping blob URL for local preview
+            contentUrl = contentBlobUrl,
+            mindUrl = response.mindUrl,
+            isVideo = contentBlobUrl.contains(".mp4") || contentBlobUrl.startsWith("blob:video"),
+            createdAt = 1700000000000
         )
+        _managedItems.value = _managedItems.value + newItem
+        
+        return response
     }
 
-    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String): CompileResponse {
-        kotlinx.coroutines.delay(2000)
-        return CompileResponse(
-            targetId = targetId,
-            mindUrl = "https://example.com/targets/updated_$targetId.mind"
-        )
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String): CompileResponse {
+        // For simplicity, update just re-compiles and replaces in the local list
+        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name)
+        deleteMindAR(targetId) 
+        return response
+    }
+
+    suspend fun deleteMindAR(targetId: String) {
+        try {
+            client.delete("$baseUrl/uploads/$targetId")
+        } catch (e: Exception) {
+            // Log error
+        }
+        _managedItems.value = _managedItems.value.filter { it.id != targetId }
     }
 }

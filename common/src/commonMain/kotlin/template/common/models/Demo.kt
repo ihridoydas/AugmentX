@@ -88,7 +88,8 @@ val demoCategories = listOf(
     DemoCategory(
         title = "Creator",
         items = listOf(
-            DemoItem("ar-creator", "AR Experience Creator", "Upload your image and 3D model to create AR")
+            DemoItem("ar-creator", "Create New AR", "Upload image and 3D model"),
+            DemoItem("ar-manage", "Manage My AR", "View, Edit, or Delete your AR experiences")
         )
     )
 )

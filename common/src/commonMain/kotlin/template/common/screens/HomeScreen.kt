@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +86,7 @@ import template.navigation.ScreenDestinations
 import template.storage.local.theme.ThemeLocalDataStore
 import template.storage.local.theme.ThemeMode
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinInject()) {
     val themeMode by themeDataStore.themeMode
@@ -223,10 +225,10 @@ fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinI
                     DemoCard(
                         item = item,
                         onClick = {
-                            if (item.id == "ar-creator") {
-                                navigator.navigate(ScreenDestinations.ARCreator)
-                            } else {
-                                navigator.navigate(ScreenDestinations.DemoScreen(item.id))
+                            when (item.id) {
+                                "ar-creator" -> navigator.navigate(ScreenDestinations.ARCreator())
+                                "ar-manage" -> navigator.navigate(ScreenDestinations.ARManage)
+                                else -> navigator.navigate(ScreenDestinations.DemoScreen(item.id))
                             }
                         },
                     )

@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -31,18 +32,35 @@ import template.common.network.ApiService
 import template.common.util.PlatformUtils
 
 @Composable
-fun ARCreatorScreen(onBack: () -> Unit) {
+fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     val apiService: ApiService = koinInject()
-    var targetName by remember { mutableStateOf("") }
-    var targetImageUrl by remember { mutableStateOf<String?>(null) }
-    var contentUrl by remember { mutableStateOf<String?>(null) }
-    var isVideo by remember { mutableStateOf(false) }
+    val managedItems by apiService.managedItems.collectAsState()
+    
+    val existingItem = remember(editId, managedItems) { 
+        managedItems.find { it.id == editId } 
+    }
+
+    var targetName by remember { mutableStateOf(existingItem?.name ?: "") }
+    var targetImageUrl by remember { mutableStateOf<String?>(existingItem?.targetImageUrl) }
+    var contentUrl by remember { mutableStateOf<String?>(existingItem?.contentUrl) }
+    var isVideo by remember { mutableStateOf(existingItem?.isVideo ?: false) }
     var isCompiling by remember { mutableStateOf(false) }
     var showAR by remember { mutableStateOf(false) }
-    var targetId by remember { mutableStateOf<String?>(null) }
-    var compiledMindUrl by remember { mutableStateOf<String?>(null) }
+    var targetId by remember { mutableStateOf(existingItem?.id) }
+    var compiledMindUrl by remember { mutableStateOf(existingItem?.mindUrl) }
 
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(existingItem) {
+        existingItem?.let {
+            targetName = it.name
+            targetImageUrl = it.targetImageUrl
+            contentUrl = it.contentUrl
+            isVideo = it.isVideo
+            targetId = it.id
+            compiledMindUrl = it.mindUrl
+        }
+    }
 
     if (showAR && compiledMindUrl != null && contentUrl != null) {
         // ... (SceneView logic remains same)
@@ -166,7 +184,7 @@ fun ARCreatorScreen(onBack: () -> Unit) {
                                     val response = if (targetId == null) {
                                         apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName)
                                     } else {
-                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!)
+                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName)
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl
@@ -215,7 +233,7 @@ fun CreatorStep(
                 Text(text = description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
             Icon(
-                imageVector = if (isDone) Icons.Default.Add else Icons.Default.Add,
+                imageVector = if (isDone) Icons.Default.Check else Icons.Default.Add,
                 contentDescription = null,
                 tint = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray
             )

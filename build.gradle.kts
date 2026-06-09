@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.androidLibrary) apply false
-    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.compose.compiler) apply false
@@ -20,6 +19,8 @@ plugins {
     alias(libs.plugins.gradle.versions) apply false
     alias(libs.plugins.spotless) apply false
     alias(libs.plugins.javafx.plugin) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 
 apply(from = "buildscripts/githooks.gradle")

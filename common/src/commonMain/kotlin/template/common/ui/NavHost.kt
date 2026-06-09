@@ -38,6 +38,7 @@ import androidx.navigation3.ui.NavDisplay
 import template.common.screens.HomeScreen
 import template.common.screens.ViewScreen
 import template.common.screens.DemoScreen
+import template.common.screens.ARManageScreen
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
@@ -105,9 +106,18 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                         )
                     }
 
-                    ScreenDestinations.ARCreator -> NavEntry(key) {
+                    is ScreenDestinations.ARCreator -> NavEntry(key) {
                         template.common.screens.ARCreatorScreen(
+                            editId = key.editId,
                             onBack = { navigator.goBack() }
+                        )
+                    }
+
+                    ScreenDestinations.ARManage -> NavEntry(key) {
+                        ARManageScreen(
+                            onBack = { navigator.goBack() },
+                            onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreator(item.id)) },
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreator()) }
                         )
                     }
                 }

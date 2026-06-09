@@ -37,4 +37,7 @@ sealed interface ScreenDestinations : NavKey {
 
     @Serializable
     data class DemoScreen(val id: String) : ScreenDestinations
+
+    @Serializable
+    data object ARCreator : ScreenDestinations
 }

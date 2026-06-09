@@ -45,6 +45,20 @@ actual object PlatformUtils {
         println("PlatformUtils Web: Hard Resetting...")
         triggerHardReset()
     }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        val input = document.createElement("input") as org.w3c.dom.HTMLInputElement
+        input.type = "file"
+        input.accept = allowedTypes
+        input.onchange = {
+            val file = input.files?.item(0)
+            if (file != null) {
+                val url = org.w3c.dom.url.URL.createObjectURL(file)
+                onPicked(url)
+            }
+        }
+        input.click()
+    }
 }
 
 @JsFun("() => { window.location.href = window.location.origin; }")

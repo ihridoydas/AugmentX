@@ -50,4 +50,8 @@ actual object PlatformUtils {
     actual fun hardReset() {
         // Not implemented for Android
     }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for Android yet
+    }
 }

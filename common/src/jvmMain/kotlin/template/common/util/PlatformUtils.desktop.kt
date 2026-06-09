@@ -40,4 +40,8 @@ actual object PlatformUtils {
     actual fun hardReset() {
         // Desktop doesn't need a hard browser reset
     }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for Desktop yet
+    }
 }

@@ -129,7 +129,14 @@ actual fun SceneView(
         if (isAR && arMode == ARMode.Image && !arStarted) {
             Box(
                 modifier = Modifier.fillMaxSize().background(Color.Black).clickable {
-                    val mindFile = trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { if (it.startsWith("/")) it else "/$it" } ?: "/images/cute.mind"
+                    val isAbsolute = trackingImage?.startsWith("http") == true || trackingImage?.startsWith("blob:") == true
+                    val mindFile = if (isAbsolute) {
+                        trackingImage!!
+                    } else {
+                        trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { 
+                            if (it.startsWith("/")) it else "/$it" 
+                        } ?: "/images/cute.mind"
+                    }
                     
                     val modelAssets = mutableListOf<String>()
                     val modelEntities = mutableListOf<String>()

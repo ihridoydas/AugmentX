@@ -32,6 +32,27 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Post(val userId: Int, val id: Int, val title: String, val body: String)
 
+@Serializable
+data class CompileResponse(val targetId: String, val mindUrl: String)
+
 class ApiService(private val client: HttpClient) {
     suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
+
+    suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
+        // In a real scenario, we'd fetch the blobs and upload them as multipart
+        // For this implementation, we simulate the backend call
+        kotlinx.coroutines.delay(3000)
+        return CompileResponse(
+            targetId = "target_${name ?: "gen"}_${kotlin.random.Random.nextInt(1000)}",
+            mindUrl = "https://example.com/targets/compiled.mind" 
+        )
+    }
+
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String): CompileResponse {
+        kotlinx.coroutines.delay(2000)
+        return CompileResponse(
+            targetId = targetId,
+            mindUrl = "https://example.com/targets/updated_$targetId.mind"
+        )
+    }
 }

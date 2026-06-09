@@ -223,7 +223,11 @@ fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinI
                     DemoCard(
                         item = item,
                         onClick = {
-                            navigator.navigate(ScreenDestinations.DemoScreen(item.id))
+                            if (item.id == "ar-creator") {
+                                navigator.navigate(ScreenDestinations.ARCreator)
+                            } else {
+                                navigator.navigate(ScreenDestinations.DemoScreen(item.id))
+                            }
                         },
                     )
                 }

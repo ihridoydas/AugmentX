@@ -30,4 +30,6 @@ expect object PlatformUtils {
     fun changeTheme(isDark: Boolean)
 
     fun hardReset()
+
+    fun pickFile(allowedTypes: String, onPicked: (String) -> Unit)
 }

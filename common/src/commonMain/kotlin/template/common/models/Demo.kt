@@ -84,5 +84,11 @@ val demoCategories = listOf(
             DemoItem("ar-image-stabilization", "AR Image Stabilization"),
             DemoItem("ar-orbital", "AR Orbital")
         )
+    ),
+    DemoCategory(
+        title = "Creator",
+        items = listOf(
+            DemoItem("ar-creator", "AR Experience Creator", "Upload your image and 3D model to create AR")
+        )
     )
 )

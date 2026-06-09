@@ -47,4 +47,8 @@ actual object PlatformUtils {
     actual fun hardReset() {
         // iOS doesn't need a hard browser reset
     }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for iOS yet
+    }
 }

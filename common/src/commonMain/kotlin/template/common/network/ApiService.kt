@@ -52,7 +52,7 @@ data class ManagedARItem(
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 class ApiService(private val client: HttpClient) {
-    private val baseUrl = "http://localhost:8080"
+    private val baseUrl = "http://127.0.0.1:8081"
     
     // Mock local list for UI persistence, but actions hit the real backend
     private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
@@ -61,25 +61,44 @@ class ApiService(private val client: HttpClient) {
     suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
 
     suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
-        // In KMP Web, imageBlobUrl is a browser blob URL (e.g. blob:http://...)
-        // To upload it to a real backend, we must first fetch the bytes of that blob.
+        println("ApiService: Starting compilation for $name")
         
-        val imageBytes = client.get(imageBlobUrl).body<ByteArray>()
-        val contentBytes = client.get(contentBlobUrl).body<ByteArray>()
+        val imageBytes = try {
+            println("ApiService: Fetching image blob: $imageBlobUrl")
+            client.get(imageBlobUrl) { headers.clear() }.body<ByteArray>()
+        } catch (e: Exception) {
+            println("ApiService: ERROR fetching image blob: ${e.message}")
+            throw e
+        }
 
-        val response: CompileResponse = client.submitFormWithBinaryData(
-            url = "$baseUrl/compile",
-            formData = formData {
-                append("name", name ?: "Unnamed")
-                append("image", imageBytes, Headers.build {
-                    append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
-                })
-                append("content", contentBytes, Headers.build {
-                    append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
-                })
-            }
-        ).body()
+        val contentBytes = try {
+            println("ApiService: Fetching content blob: $contentBlobUrl")
+            client.get(contentBlobUrl) { headers.clear() }.body<ByteArray>()
+        } catch (e: Exception) {
+            println("ApiService: ERROR fetching content blob: ${e.message}")
+            throw e
+        }
 
+        println("ApiService: Submitting multipart form to $baseUrl/compile")
+        val response: CompileResponse = try {
+            client.submitFormWithBinaryData(
+                url = "$baseUrl/compile",
+                formData = formData {
+                    append("name", name ?: "Unnamed")
+                    append("image", imageBytes, Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
+                    })
+                    append("content", contentBytes, Headers.build {
+                        append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
+                    })
+                }
+            ).body()
+        } catch (e: Exception) {
+            println("ApiService: ERROR submitting form: ${e.message}")
+            throw e
+        }
+
+        println("ApiService: Successfully compiled! ID: ${response.targetId}")
         val newItem = ManagedARItem(
             id = response.targetId,
             name = name ?: "Unnamed Target",

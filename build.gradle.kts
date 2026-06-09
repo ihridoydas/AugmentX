@@ -61,6 +61,37 @@ subprojects {
     }
 }
 
+val startBackend = tasks.register("startBackend") {
+    group = "application"
+    val projectDir = layout.projectDirectory
+    val logFile = projectDir.file("backend.log").asFile
+    val gradlew = if (System.getProperty("os.name").lowercase().contains("windows")) {
+        projectDir.file("gradlew.bat").asFile.absolutePath
+    } else {
+        projectDir.file("gradlew").asFile.absolutePath
+    }
+
+    doLast {
+        println("🚀 Starting Backend...")
+        ProcessBuilder(gradlew, ":backend:run", "--no-daemon").apply {
+            redirectErrorStream(true)
+            redirectOutput(ProcessBuilder.Redirect.to(logFile))
+            start()
+        }
+        println("✅ Backend starting... (Logs: ${logFile.absolutePath})")
+        
+        println("⏳ Waiting for backend to bind to port 8081...")
+        Thread.sleep(5000)
+    }
+}
+
+tasks.register("runWebWithBackend") {
+    group = "application"
+    description = "Starts the Ktor backend in the background and runs the Wasm web app."
+    dependsOn(startBackend)
+    dependsOn(":common:wasmJsBrowserDevelopmentRun")
+}
+
 tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAll") {
     parallel = true
     setSource(files(projectDir))

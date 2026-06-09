@@ -1,6 +1,11 @@
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
+    id("application")
+}
+
+application {
+    mainClass.set("template.backend.ApplicationKt")
 }
 
 dependencies {

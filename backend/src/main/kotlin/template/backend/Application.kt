@@ -20,19 +20,20 @@ import kotlinx.serialization.Serializable
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
+    embeddedServer(Netty, port = 8081, host = "127.0.0.1") {
         install(ContentNegotiation) {
             json()
         }
         install(CORS) {
             anyHost()
+            allowHeader("*")
             allowMethod(HttpMethod.Options)
+            allowMethod(HttpMethod.Get)
+            allowMethod(HttpMethod.Post)
             allowMethod(HttpMethod.Put)
             allowMethod(HttpMethod.Delete)
             allowMethod(HttpMethod.Patch)
-            allowHeader(HttpHeaders.Authorization)
-            allowHeader(HttpHeaders.ContentType)
-            anyHost()
+            allowNonSimpleContentTypes = true
         }
 
         routing {
@@ -71,7 +72,7 @@ fun main() {
                 val mindFile = File(uploadDir, mindFileName)
                 mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
 
-                val baseUrl = "http://localhost:8080/uploads"
+                val baseUrl = "http://127.0.0.1:8081/uploads"
                 call.respond(CompileResponse(
                     targetId = targetId,
                     mindUrl = "$baseUrl/$mindFileName"

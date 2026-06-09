@@ -41,7 +41,7 @@ fun createHttpClient(): HttpClient = HttpClient {
             },
         )
     }
-    install(Logging) {
+    /* install(Logging) {
         level = LogLevel.ALL
-    }
+    } */
 }

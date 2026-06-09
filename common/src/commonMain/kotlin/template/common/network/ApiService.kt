@@ -52,7 +52,8 @@ data class ManagedARItem(
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 class ApiService(private val client: HttpClient) {
-    private val baseUrl = "http://127.0.0.1:8081"
+    private val baseUrl = "http://127.0.0.1:8888"
+    private val blobClient = HttpClient() // Bare client for local blobs
     
     // Mock local list for UI persistence, but actions hit the real backend
     private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
@@ -65,7 +66,7 @@ class ApiService(private val client: HttpClient) {
         
         val imageBytes = try {
             println("ApiService: Fetching image blob: $imageBlobUrl")
-            client.get(imageBlobUrl) { headers.clear() }.body<ByteArray>()
+            blobClient.get(imageBlobUrl).body<ByteArray>()
         } catch (e: Exception) {
             println("ApiService: ERROR fetching image blob: ${e.message}")
             throw e
@@ -73,7 +74,7 @@ class ApiService(private val client: HttpClient) {
 
         val contentBytes = try {
             println("ApiService: Fetching content blob: $contentBlobUrl")
-            client.get(contentBlobUrl) { headers.clear() }.body<ByteArray>()
+            blobClient.get(contentBlobUrl).body<ByteArray>()
         } catch (e: Exception) {
             println("ApiService: ERROR fetching content blob: ${e.message}")
             throw e
@@ -86,9 +87,11 @@ class ApiService(private val client: HttpClient) {
                 formData = formData {
                     append("name", name ?: "Unnamed")
                     append("image", imageBytes, Headers.build {
+                        append(HttpHeaders.ContentType, "image/jpeg")
                         append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
                     })
                     append("content", contentBytes, Headers.build {
+                        append(HttpHeaders.ContentType, "application/octet-stream")
                         append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
                     })
                 }

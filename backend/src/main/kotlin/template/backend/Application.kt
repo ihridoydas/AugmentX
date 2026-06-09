@@ -20,19 +20,17 @@ import kotlinx.serialization.Serializable
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 fun main() {
-    embeddedServer(Netty, port = 8081, host = "127.0.0.1") {
+    embeddedServer(Netty, port = 8888, host = "127.0.0.1") {
         install(ContentNegotiation) {
             json()
         }
         install(CORS) {
             anyHost()
-            allowHeader("*")
+            allowHeader(HttpHeaders.ContentType)
+            allowHeader(HttpHeaders.Authorization)
             allowMethod(HttpMethod.Options)
-            allowMethod(HttpMethod.Get)
             allowMethod(HttpMethod.Post)
-            allowMethod(HttpMethod.Put)
-            allowMethod(HttpMethod.Delete)
-            allowMethod(HttpMethod.Patch)
+            allowMethod(HttpMethod.Get)
             allowNonSimpleContentTypes = true
         }
 
@@ -43,11 +41,13 @@ fun main() {
             staticFiles("/uploads", uploadDir)
 
             post("/compile") {
+                println("Backend: Received /compile request")
                 val multipart = call.receiveMultipart()
                 var targetName = "Unknown"
                 var targetId = UUID.randomUUID().toString()
                 
                 multipart.forEachPart { part ->
+                    println("Backend: Processing part: ${part.name}")
                     when (part) {
                         is PartData.FormItem -> {
                             if (part.name == "name") targetName = part.value
@@ -67,12 +67,11 @@ fun main() {
                 }
 
                 // SIMULATED MindAR Compilation
-                // In reality, you'd run: `npx mind-ar-compiler image.jpg target.mind`
                 val mindFileName = "${targetId}.mind"
                 val mindFile = File(uploadDir, mindFileName)
                 mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
 
-                val baseUrl = "http://127.0.0.1:8081/uploads"
+                val baseUrl = "http://127.0.0.1:8888/uploads"
                 call.respond(CompileResponse(
                     targetId = targetId,
                     mindUrl = "$baseUrl/$mindFileName"

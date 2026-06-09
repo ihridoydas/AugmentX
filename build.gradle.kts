@@ -72,7 +72,17 @@ val startBackend = tasks.register("startBackend") {
     }
 
     doLast {
-        println("🚀 Starting Backend...")
+        println("🚀 Cleaning ports and starting Backend...")
+        // Kill existing backend if any
+        try {
+            ProcessBuilder("lsof", "-ti:8888").start().inputStream.bufferedReader().readText().trim().let { pid ->
+                if (pid.isNotEmpty()) {
+                    println("Killing existing backend on port 8888 (PID: $pid)")
+                    ProcessBuilder("kill", "-9", pid).start().waitFor()
+                }
+            }
+        } catch (e: Exception) { /* ignore */ }
+
         ProcessBuilder(gradlew, ":backend:run", "--no-daemon").apply {
             redirectErrorStream(true)
             redirectOutput(ProcessBuilder.Redirect.to(logFile))
@@ -80,8 +90,8 @@ val startBackend = tasks.register("startBackend") {
         }
         println("✅ Backend starting... (Logs: ${logFile.absolutePath})")
         
-        println("⏳ Waiting for backend to bind to port 8081...")
-        Thread.sleep(5000)
+        println("⏳ Waiting for backend to bind to port 8888...")
+        Thread.sleep(8000)
     }
 }
 

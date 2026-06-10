@@ -229,6 +229,12 @@
 
             container.innerHTML = finalHtml;
 
+            // SMART DEBUG: Check if .mind file is reachable from JS
+            fetch(fullMindPath, {method: 'HEAD'}).then(r => {
+                if (r.ok) screenLog("MindFile Reachable: YES");
+                else screenLog("MindFile Reachable: NO (Status " + r.status + ")");
+            }).catch(err => screenLog("MindFile Fetch Error: " + err.message));
+
             const video = container.querySelector('#arVideo');
             if (video) {
                 video.addEventListener('loadeddata', () => screenLog("Video Loaded Data"));
@@ -297,9 +303,15 @@
                 });
 
                 sceneEl.addEventListener('loaded', () => {
+                    screenLog("A-Frame Scene Loaded");
                     setTimeout(() => {
                         const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
-                        if (system) { system.start(); screenLog("Scanning..."); }
+                        if (system) {
+                            screenLog("MindAR System starting...");
+                            system.start();
+                        } else {
+                            screenLog("ERROR: MindAR System NOT FOUND");
+                        }
                     }, 1000);
                 });
             }

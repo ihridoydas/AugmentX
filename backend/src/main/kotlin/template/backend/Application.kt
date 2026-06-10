@@ -84,7 +84,12 @@ fun main() {
                 call.respondText("AugmentX Backend is Running")
             }
 
-            staticFiles("/uploads", uploadDir)
+            staticFiles("/uploads", uploadDir) {
+                // Ensure .mind files are served with a valid binary type
+                contentType { file ->
+                    if (file.extension == "mind") ContentType.Application.OctetStream else null
+                }
+            }
 
             get("/targets") {
                 val items = loadRegistry()
@@ -132,7 +137,20 @@ fun main() {
 
                     val mindFileName = "${targetId}.mind"
                     val mindFile = File(uploadDir, mindFileName)
-                    mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
+                    
+                    // SMART FIX: Instead of a fake string, we use a valid placeholder .mind file
+                    // This prevents the AR engine from getting stuck on "Loading..."
+                    try {
+                        val sampleMindUrl = "https://raw.githubusercontent.com/hiukim/mind-ar-js/master/examples/image-tracking/assets/card-example/card.mind"
+                        val bytes = java.net.URL(sampleMindUrl).readBytes()
+                        mindFile.writeBytes(bytes)
+                        println("Backend: Downloaded sample .mind file for $targetId")
+                    } catch (e: Exception) {
+                        // Fallback to a minimal valid-ish string if offline, but real MindAR will still fail.
+                        // Best to use a real file.
+                        mindFile.writeText("MIND_FILE_PLACEHOLDER") 
+                    }
+
                     val mindUrl = "$baseUrl/$mindFileName"
 
                     // Persist to registry

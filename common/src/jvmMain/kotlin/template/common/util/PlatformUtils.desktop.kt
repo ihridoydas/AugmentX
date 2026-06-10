@@ -44,4 +44,12 @@ actual object PlatformUtils {
     actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
         // Not implemented for Desktop yet
     }
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        return try {
+            java.net.URL(url).readBytes()
+        } catch (e: Exception) {
+            ByteArray(0)
+        }
+    }
 }

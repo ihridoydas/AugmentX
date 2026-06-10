@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 
+import template.common.util.PlatformUtils
+
 @Serializable
 data class Post(val userId: Int, val id: Int, val title: String, val body: String)
 
@@ -64,20 +66,20 @@ class ApiService(private val client: HttpClient) {
     suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
         println("ApiService: Starting compilation for $name")
         
-        // 1. Fetch local blobs using the same client
+        // 1. Fetch local blobs using PlatformUtils (handles blob: URLs correctly on Web)
         val imageBytes = try {
-            println("ApiService: Fetching image blob: $imageBlobUrl")
-            client.get(imageBlobUrl).body<ByteArray>()
+            println("ApiService: Reading image bytes from $imageBlobUrl")
+            PlatformUtils.readBytes(imageBlobUrl)
         } catch (e: Exception) {
-            println("ApiService: ERROR fetching image blob: ${e.message}")
+            println("ApiService: ERROR reading image: ${e.message}")
             throw e
         }
 
         val contentBytes = try {
-            println("ApiService: Fetching content blob: $contentBlobUrl")
-            client.get(contentBlobUrl).body<ByteArray>()
+            println("ApiService: Reading content bytes from $contentBlobUrl")
+            PlatformUtils.readBytes(contentBlobUrl)
         } catch (e: Exception) {
-            println("ApiService: ERROR fetching content blob: ${e.message}")
+            println("ApiService: ERROR reading content: ${e.message}")
             throw e
         }
 

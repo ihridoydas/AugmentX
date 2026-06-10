@@ -51,4 +51,9 @@ actual object PlatformUtils {
     actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
         // Not implemented for iOS yet
     }
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        // Simple fallback, real iOS impl would use NSData or similar
+        return ByteArray(0)
+    }
 }

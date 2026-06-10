@@ -54,4 +54,17 @@ actual object PlatformUtils {
     actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
         // Not implemented for Android yet
     }
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        return try {
+            if (url.startsWith("http")) {
+                java.net.URL(url).readBytes()
+            } else {
+                // Handle content:// or file:// if needed
+                ByteArray(0)
+            }
+        } catch (e: Exception) {
+            ByteArray(0)
+        }
+    }
 }

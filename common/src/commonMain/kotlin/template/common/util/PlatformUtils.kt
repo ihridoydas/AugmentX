@@ -32,4 +32,6 @@ expect object PlatformUtils {
     fun hardReset()
 
     fun pickFile(allowedTypes: String, onPicked: (String) -> Unit)
+
+    suspend fun readBytes(url: String): ByteArray
 }

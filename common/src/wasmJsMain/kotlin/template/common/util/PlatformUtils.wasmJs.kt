@@ -29,6 +29,11 @@ package template.common.util
 
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
+import kotlinx.browser.window
+import kotlinx.coroutines.await
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
+import org.khronos.webgl.ArrayBuffer
 
 actual object PlatformUtils {
     actual fun changeLanguage(code: String) {
@@ -58,6 +63,13 @@ actual object PlatformUtils {
             }
         }
         input.click()
+    }
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        val response = window.fetch(url).await()
+        val buffer = response.arrayBuffer().await()
+        val uint8Array = Uint8Array(buffer)
+        return ByteArray(uint8Array.length) { i -> uint8Array[i] }
     }
 }
 

@@ -1,0 +1,20 @@
+[
+    {
+        "id": "61913474-a74a-49ec-b582-df532c56aac5",
+        "name": "image",
+        "targetImageUrl": "http://127.0.0.1:8888/uploads/61913474-a74a-49ec-b582-df532c56aac5_target.jpg",
+        "contentUrl": "http://127.0.0.1:8888/uploads/61913474-a74a-49ec-b582-df532c56aac5_content.data",
+        "mindUrl": "http://127.0.0.1:8888/uploads/61913474-a74a-49ec-b582-df532c56aac5.mind",
+        "isVideo": false,
+        "createdAt": 1781108097010
+    },
+    {
+        "id": "d85520f0-4220-4f02-af92-1816f88a344f",
+        "name": "boy",
+        "targetImageUrl": "http://127.0.0.1:8888/uploads/d85520f0-4220-4f02-af92-1816f88a344f_target.jpg",
+        "contentUrl": "http://127.0.0.1:8888/uploads/d85520f0-4220-4f02-af92-1816f88a344f_content.data",
+        "mindUrl": "http://127.0.0.1:8888/uploads/d85520f0-4220-4f02-af92-1816f88a344f.mind",
+        "isVideo": false,
+        "createdAt": 1781108313009
+    }
+]

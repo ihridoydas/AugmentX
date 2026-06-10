@@ -1,27 +1,3 @@
-/*
-* MIT License
-*
-* Copyright (c) 2026 Hridoy Chandra Das
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-*/
 package template.common.network
 
 import io.ktor.client.HttpClient
@@ -29,11 +5,13 @@ import io.ktor.client.call.body
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-
 import template.common.util.PlatformUtils
 
 @Serializable
@@ -54,19 +32,35 @@ data class ManagedARItem(
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 class ApiService(private val client: HttpClient) {
-    // Use 127.0.0.1 explicitly to avoid localhost resolution issues (IPv4 vs IPv6)
     private val baseUrl = "http://127.0.0.1:8888"
     
-    // Mock local list for UI persistence
     private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
     val managedItems: StateFlow<List<ManagedARItem>> = _managedItems.asStateFlow()
+
+    init {
+        // Automatically fetch items when the service is created
+        refreshTargets()
+    }
+
+    fun refreshTargets() {
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                println("ApiService: Refreshing targets from backend...")
+                val items: List<ManagedARItem> = client.get("$baseUrl/targets").body()
+                println("ApiService: Received ${items.size} items from server.")
+                _managedItems.value = items
+            } catch (e: Exception) {
+                println("ApiService: Failed to fetch targets: ${e.message}")
+            }
+        }
+    }
 
     suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
 
     suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
         println("ApiService: Starting compilation for $name")
         
-        // 1. Fetch local blobs using PlatformUtils (handles blob: URLs correctly on Web)
+        // 1. Fetch local blobs using PlatformUtils
         val imageBytes = try {
             println("ApiService: Reading image bytes from $imageBlobUrl")
             PlatformUtils.readBytes(imageBlobUrl)
@@ -102,30 +96,21 @@ class ApiService(private val client: HttpClient) {
             }.body()
 
             println("ApiService: Successfully compiled! ID: ${response.targetId}")
-            val newItem = ManagedARItem(
-                id = response.targetId,
-                name = name ?: "Unnamed Target",
-                targetImageUrl = imageBlobUrl, 
-                contentUrl = contentBlobUrl,
-                mindUrl = response.mindUrl,
-                isVideo = contentBlobUrl.contains(".mp4") || contentBlobUrl.startsWith("blob:video"),
-                createdAt = 1700000000000
-            )
-            _managedItems.value = _managedItems.value + newItem
+            
+            // Refresh the list from the server to get the permanent URLs
+            refreshTargets()
+            
             response
         } catch (e: Exception) {
             println("ApiService: ERROR submitting form: ${e.message}")
-            // Check for CORS or Network error specifically
             if (e.toString().contains("TypeError") || e.toString().contains("Fail to fetch")) {
                 println("ApiService: DETECTED FETCH FAILURE. Likely CORS or Server Unreachable.")
-                println("ApiService: Ensure backend is running at $baseUrl and CORS allows the frontend origin.")
             }
             throw e
         }
     }
 
     suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String): CompileResponse {
-        // For simplicity, update just re-compiles and replaces in the local list
         val response = compileMindAR(imageBlobUrl, contentBlobUrl, name)
         deleteMindAR(targetId) 
         return response
@@ -134,9 +119,9 @@ class ApiService(private val client: HttpClient) {
     suspend fun deleteMindAR(targetId: String) {
         try {
             client.delete("$baseUrl/uploads/$targetId")
+            refreshTargets()
         } catch (e: Exception) {
-            // Log error
+            println("ApiService: Failed to delete: ${e.message}")
         }
-        _managedItems.value = _managedItems.value.filter { it.id != targetId }
     }
 }

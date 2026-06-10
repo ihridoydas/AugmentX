@@ -20,66 +20,91 @@ import kotlinx.serialization.Serializable
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 fun main() {
-    embeddedServer(Netty, port = 8888, host = "127.0.0.1") {
+    embeddedServer(Netty, port = 8888, host = "0.0.0.0") {
         install(ContentNegotiation) {
             json()
         }
+        
         install(CORS) {
+            // Be very permissive for development to avoid "Fail to fetch"
             anyHost()
-            allowHeader(HttpHeaders.ContentType)
-            allowHeader(HttpHeaders.Authorization)
+            
             allowMethod(HttpMethod.Options)
             allowMethod(HttpMethod.Post)
             allowMethod(HttpMethod.Get)
+            allowMethod(HttpMethod.Put)
+            allowMethod(HttpMethod.Delete)
+            
+            allowHeader(HttpHeaders.ContentType)
+            allowHeader(HttpHeaders.Authorization)
+            allowHeader(HttpHeaders.Accept)
+            allowHeader("X-Requested-With")
+            
             allowNonSimpleContentTypes = true
+            allowCredentials = true
+            
+            maxAgeInSeconds = 3600
         }
 
         routing {
             val uploadDir = File("backend/uploads")
             if (!uploadDir.exists()) uploadDir.mkdirs()
 
+            // Root route for connection testing
+            get("/") {
+                call.respondText("AugmentX Backend is Running")
+            }
+
             staticFiles("/uploads", uploadDir)
 
             post("/compile") {
-                println("Backend: Received /compile request")
-                val multipart = call.receiveMultipart()
-                var targetName = "Unknown"
-                var targetId = UUID.randomUUID().toString()
+                println("Backend: POST /compile - Received request")
                 
-                multipart.forEachPart { part ->
-                    println("Backend: Processing part: ${part.name}")
-                    when (part) {
-                        is PartData.FormItem -> {
-                            if (part.name == "name") targetName = part.value
-                        }
-                        is PartData.FileItem -> {
-                            val fileName = "${targetId}_${part.originalFileName}"
-                            val file = File(uploadDir, fileName)
-                            part.streamProvider().use { input ->
-                                file.outputStream().buffered().use { output ->
-                                    input.copyTo(output)
-                                }
+                try {
+                    val multipart = call.receiveMultipart()
+                    var targetName = "Unknown"
+                    var targetId = UUID.randomUUID().toString()
+                    
+                    multipart.forEachPart { part ->
+                        when (part) {
+                            is PartData.FormItem -> {
+                                if (part.name == "name") targetName = part.value
                             }
+                            is PartData.FileItem -> {
+                                val fileName = "${targetId}_${part.originalFileName ?: "file"}"
+                                val file = File(uploadDir, fileName)
+                                part.streamProvider().use { input ->
+                                    file.outputStream().buffered().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                                println("Backend: Saved file $fileName")
+                            }
+                            else -> {}
                         }
-                        else -> {}
+                        part.dispose()
                     }
-                    part.dispose()
+
+                    // SIMULATED MindAR Compilation
+                    val mindFileName = "${targetId}.mind"
+                    val mindFile = File(uploadDir, mindFileName)
+                    mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
+
+                    // Use localhost for local dev, but in production this would be a real domain
+                    val baseUrl = "http://localhost:8888/uploads"
+                    call.respond(CompileResponse(
+                        targetId = targetId,
+                        mindUrl = "$baseUrl/$mindFileName"
+                    ))
+                } catch (e: Exception) {
+                    println("Backend: ERROR processing /compile: ${e.message}")
+                    call.respond(HttpStatusCode.InternalServerError, e.message ?: "Unknown Error")
                 }
-
-                // SIMULATED MindAR Compilation
-                val mindFileName = "${targetId}.mind"
-                val mindFile = File(uploadDir, mindFileName)
-                mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
-
-                val baseUrl = "http://127.0.0.1:8888/uploads"
-                call.respond(CompileResponse(
-                    targetId = targetId,
-                    mindUrl = "$baseUrl/$mindFileName"
-                ))
             }
 
             delete("/uploads/{id}") {
                 val id = call.parameters["id"]
+                println("Backend: DELETE /uploads/$id")
                 val files = uploadDir.listFiles { _, name -> name.startsWith(id ?: "") }
                 files?.forEach { it.delete() }
                 call.respond(HttpStatusCode.OK)

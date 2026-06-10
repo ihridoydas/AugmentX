@@ -42,6 +42,6 @@ fun createHttpClient(): HttpClient = HttpClient {
         )
     }
     /* install(Logging) {
-        level = LogLevel.ALL
+        level = LogLevel.HEADERS
     } */
 }

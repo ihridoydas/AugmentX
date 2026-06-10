@@ -73,34 +73,37 @@ val startBackend = tasks.register("startBackend") {
 
     doLast {
         println("🚀 Cleaning ports and starting Backend...")
-        // Kill existing backend if any
         try {
-            ProcessBuilder("lsof", "-ti:8888").start().inputStream.bufferedReader().readText().trim().let { pid ->
-                if (pid.isNotEmpty()) {
-                    println("Killing existing backend on port 8888 (PID: $pid)")
-                    ProcessBuilder("kill", "-9", pid).start().waitFor()
-                }
+            // Find PID on port 8888
+            val pid = ProcessBuilder("lsof", "-t", "-i:8888").start().inputStream.bufferedReader().readText().trim()
+            if (pid.isNotEmpty()) {
+                println("Killing existing backend on port 8888 (PID: $pid)")
+                ProcessBuilder("kill", "-9", pid).start().waitFor()
             }
         } catch (e: Exception) { /* ignore */ }
 
-        ProcessBuilder(gradlew, ":backend:run", "--no-daemon").apply {
+        println("🚀 Starting Backend in background...")
+        // Use nohup to ensure it stays alive and detaches
+        val command = listOf("nohup", gradlew, ":backend:run", "--no-daemon")
+        ProcessBuilder(command).apply {
             redirectErrorStream(true)
             redirectOutput(ProcessBuilder.Redirect.to(logFile))
             start()
         }
-        println("✅ Backend starting... (Logs: ${logFile.absolutePath})")
         
-        println("⏳ Waiting for backend to bind to port 8888...")
-        Thread.sleep(8000)
+        println("✅ Backend process detached. Logs: ${logFile.absolutePath}")
+        println("⏳ Waiting 5s for server to start...")
+        Thread.sleep(5000)
     }
 }
 
 tasks.register("runWebWithBackend") {
     group = "application"
-    description = "Starts the Ktor backend in the background and runs the Wasm web app."
+    description = "Starts the Ktor backend and runs the Wasm web app."
     dependsOn(startBackend)
     dependsOn(":common:wasmJsBrowserDevelopmentRun")
 }
+
 
 tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAll") {
     parallel = true

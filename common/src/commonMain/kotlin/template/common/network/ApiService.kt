@@ -52,10 +52,10 @@ data class ManagedARItem(
 data class CompileResponse(val targetId: String, val mindUrl: String)
 
 class ApiService(private val client: HttpClient) {
+    // Use 127.0.0.1 explicitly to avoid localhost resolution issues (IPv4 vs IPv6)
     private val baseUrl = "http://127.0.0.1:8888"
-    private val blobClient = HttpClient() // Bare client for local blobs
     
-    // Mock local list for UI persistence, but actions hit the real backend
+    // Mock local list for UI persistence
     private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
     val managedItems: StateFlow<List<ManagedARItem>> = _managedItems.asStateFlow()
 
@@ -64,9 +64,10 @@ class ApiService(private val client: HttpClient) {
     suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
         println("ApiService: Starting compilation for $name")
         
+        // 1. Fetch local blobs using the same client
         val imageBytes = try {
             println("ApiService: Fetching image blob: $imageBlobUrl")
-            blobClient.get(imageBlobUrl).body<ByteArray>()
+            client.get(imageBlobUrl).body<ByteArray>()
         } catch (e: Exception) {
             println("ApiService: ERROR fetching image blob: ${e.message}")
             throw e
@@ -74,46 +75,51 @@ class ApiService(private val client: HttpClient) {
 
         val contentBytes = try {
             println("ApiService: Fetching content blob: $contentBlobUrl")
-            blobClient.get(contentBlobUrl).body<ByteArray>()
+            client.get(contentBlobUrl).body<ByteArray>()
         } catch (e: Exception) {
             println("ApiService: ERROR fetching content blob: ${e.message}")
             throw e
         }
 
         println("ApiService: Submitting multipart form to $baseUrl/compile")
-        val response: CompileResponse = try {
-            client.submitFormWithBinaryData(
-                url = "$baseUrl/compile",
-                formData = formData {
-                    append("name", name ?: "Unnamed")
-                    append("image", imageBytes, Headers.build {
-                        append(HttpHeaders.ContentType, "image/jpeg")
-                        append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
-                    })
-                    append("content", contentBytes, Headers.build {
-                        append(HttpHeaders.ContentType, "application/octet-stream")
-                        append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
-                    })
-                }
-            ).body()
+        return try {
+            val response: CompileResponse = client.post("$baseUrl/compile") {
+                setBody(MultiPartFormDataContent(
+                    formData {
+                        append("name", name ?: "Unnamed")
+                        append("image", imageBytes, Headers.build {
+                            append(HttpHeaders.ContentType, "image/jpeg")
+                            append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
+                        })
+                        append("content", contentBytes, Headers.build {
+                            append(HttpHeaders.ContentType, "application/octet-stream")
+                            append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
+                        })
+                    }
+                ))
+            }.body()
+
+            println("ApiService: Successfully compiled! ID: ${response.targetId}")
+            val newItem = ManagedARItem(
+                id = response.targetId,
+                name = name ?: "Unnamed Target",
+                targetImageUrl = imageBlobUrl, 
+                contentUrl = contentBlobUrl,
+                mindUrl = response.mindUrl,
+                isVideo = contentBlobUrl.contains(".mp4") || contentBlobUrl.startsWith("blob:video"),
+                createdAt = 1700000000000
+            )
+            _managedItems.value = _managedItems.value + newItem
+            response
         } catch (e: Exception) {
             println("ApiService: ERROR submitting form: ${e.message}")
+            // Check for CORS or Network error specifically
+            if (e.toString().contains("TypeError") || e.toString().contains("Fail to fetch")) {
+                println("ApiService: DETECTED FETCH FAILURE. Likely CORS or Server Unreachable.")
+                println("ApiService: Ensure backend is running at $baseUrl and CORS allows the frontend origin.")
+            }
             throw e
         }
-
-        println("ApiService: Successfully compiled! ID: ${response.targetId}")
-        val newItem = ManagedARItem(
-            id = response.targetId,
-            name = name ?: "Unnamed Target",
-            targetImageUrl = imageBlobUrl, // Keeping blob URL for local preview
-            contentUrl = contentBlobUrl,
-            mindUrl = response.mindUrl,
-            isVideo = contentBlobUrl.contains(".mp4") || contentBlobUrl.startsWith("blob:video"),
-            createdAt = 1700000000000
-        )
-        _managedItems.value = _managedItems.value + newItem
-        
-        return response
     }
 
     suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String): CompileResponse {

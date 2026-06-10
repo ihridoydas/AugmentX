@@ -188,8 +188,8 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl
-                                } catch (e: Exception) {
-                                    // Error
+                                } catch (e: Throwable) {
+                                    println("ARCreator: Error during compilation: ${e.message}")
                                 } finally {
                                     isCompiling = false
                                 }

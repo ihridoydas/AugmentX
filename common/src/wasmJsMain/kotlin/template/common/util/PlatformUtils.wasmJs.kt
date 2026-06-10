@@ -51,7 +51,7 @@ actual object PlatformUtils {
         triggerHardReset()
     }
 
-    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+    actual fun pickFile(allowedTypes: String, onPicked: (url: String, name: String) -> Unit) {
         val input = document.createElement("input") as org.w3c.dom.HTMLInputElement
         input.type = "file"
         input.accept = allowedTypes
@@ -59,7 +59,7 @@ actual object PlatformUtils {
             val file = input.files?.item(0)
             if (file != null) {
                 val url = org.w3c.dom.url.URL.createObjectURL(file)
-                onPicked(url)
+                onPicked(url, file.name)
             }
         }
         input.click()

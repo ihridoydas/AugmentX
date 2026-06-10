@@ -54,7 +54,7 @@ fun main() {
         }
 
         routing {
-            val uploadDir = File("backend/uploads")
+            val uploadDir = File("backend/uploads").absoluteFile
             if (!uploadDir.exists()) uploadDir.mkdirs()
 
             val registryFile = File(uploadDir, "registry.json")
@@ -107,9 +107,11 @@ fun main() {
                         when (part) {
                             is PartData.FormItem -> {
                                 if (part.name == "name") targetName = part.value
+                                if (part.name == "isVideo") isVideo = part.value.toBoolean()
                             }
                             is PartData.FileItem -> {
-                                val fileName = "${targetId}_${part.originalFileName ?: "file"}"
+                                val ext = if (part.name == "image") "jpg" else if (isVideo) "mp4" else "glb"
+                                val fileName = "${targetId}_${part.name}.$ext"
                                 val file = File(uploadDir, fileName)
                                 part.streamProvider().use { input ->
                                     file.outputStream().buffered().use { output ->
@@ -120,7 +122,6 @@ fun main() {
                                     targetImageUrl = "$baseUrl/$fileName"
                                 } else if (part.name == "content") {
                                     contentUrl = "$baseUrl/$fileName"
-                                    isVideo = fileName.contains(".mp4")
                                 }
                                 println("Backend: Saved file $fileName")
                             }

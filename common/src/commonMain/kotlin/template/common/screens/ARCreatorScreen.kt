@@ -123,7 +123,9 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     description = "JPG/PNG image to be tracked.",
                     isDone = targetImageUrl != null,
                     onClick = {
-                        PlatformUtils.pickFile("image/*") { url -> targetImageUrl = url }
+                        PlatformUtils.pickFile("image/*") { url, name -> 
+                            targetImageUrl = url 
+                        }
                     }
                 )
                 if (targetImageUrl != null) {
@@ -138,9 +140,14 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     description = "GLB model or MP4 video.",
                     isDone = contentUrl != null,
                     onClick = {
-                        PlatformUtils.pickFile(".glb,.mp4,video/*") { url -> 
+                        PlatformUtils.pickFile(".glb,.mp4,video/*") { url, name -> 
+                            println("ARCreator: Picked file: $name")
                             contentUrl = url
-                            isVideo = url.contains(".mp4") || url.startsWith("blob:video") 
+                            // Smartly detect video by extension
+                            isVideo = name.lowercase().let { 
+                                it.endsWith(".mp4") || it.endsWith(".mov") || it.endsWith(".webm") || it.endsWith(".avi")
+                            }
+                            println("ARCreator: isVideo detected as: $isVideo")
                         }
                     }
                 )
@@ -184,14 +191,18 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                             scope.launch {
                                 try {
                                     val response = if (targetId == null) {
-                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName)
+                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, isVideo, targetName)
                                     } else {
-                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName)
+                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, isVideo, targetName)
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl
+                                    
+                                    val typeText = if (isVideo) "Video" else "3D Model"
+                                    val actionText = if (editId == null) "created" else "updated"
+                                    
                                     snackbarHostState.showSnackbar(
-                                        message = if (editId == null) "Target created successfully!" else "Target updated successfully!",
+                                        message = "$typeText Target $actionText successfully!",
                                         duration = SnackbarDuration.Short
                                     )
                                 } catch (e: Throwable) {

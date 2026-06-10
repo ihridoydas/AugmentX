@@ -38,80 +38,58 @@ class ApiService(private val client: HttpClient) {
     val managedItems: StateFlow<List<ManagedARItem>> = _managedItems.asStateFlow()
 
     init {
-        // Automatically fetch items when the service is created
         refreshTargets()
     }
 
     fun refreshTargets() {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
-                println("ApiService: Refreshing targets from backend...")
-                val items: List<ManagedARItem> = client.get("$baseUrl/targets").body()
-                println("ApiService: Received ${items.size} items from server.")
-                _managedItems.value = items
+                println("ApiService: Fetching targets from $baseUrl/targets ...")
+                val response = client.get("$baseUrl/targets")
+                if (response.status == HttpStatusCode.OK) {
+                    val items: List<ManagedARItem> = response.body()
+                    _managedItems.value = items
+                }
             } catch (e: Exception) {
                 println("ApiService: Failed to fetch targets: ${e.message}")
             }
         }
     }
 
-    suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
-
-    suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
-        println("ApiService: Starting compilation for $name")
+    suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, isVideo: Boolean, name: String? = null): CompileResponse {
+        println("ApiService: Starting compilation for $name (isVideo: $isVideo)")
         
-        // 1. Fetch local blobs using PlatformUtils
-        val imageBytes = try {
-            println("ApiService: Reading image bytes from $imageBlobUrl")
-            PlatformUtils.readBytes(imageBlobUrl)
-        } catch (e: Exception) {
-            println("ApiService: ERROR reading image: ${e.message}")
-            throw e
-        }
+        val imageBytes = PlatformUtils.readBytes(imageBlobUrl)
+        val contentBytes = PlatformUtils.readBytes(contentBlobUrl)
 
-        val contentBytes = try {
-            println("ApiService: Reading content bytes from $contentBlobUrl")
-            PlatformUtils.readBytes(contentBlobUrl)
-        } catch (e: Exception) {
-            println("ApiService: ERROR reading content: ${e.message}")
-            throw e
-        }
-
-        println("ApiService: Submitting multipart form to $baseUrl/compile")
         return try {
             val response: CompileResponse = client.post("$baseUrl/compile") {
                 setBody(MultiPartFormDataContent(
                     formData {
                         append("name", name ?: "Unnamed")
+                        append("isVideo", isVideo.toString())
                         append("image", imageBytes, Headers.build {
                             append(HttpHeaders.ContentType, "image/jpeg")
                             append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
                         })
                         append("content", contentBytes, Headers.build {
-                            append(HttpHeaders.ContentType, "application/octet-stream")
-                            append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
+                            append(HttpHeaders.ContentType, if (isVideo) "video/mp4" else "model/gltf-binary")
+                            append(HttpHeaders.ContentDisposition, "filename=\"content.${if (isVideo) "mp4" else "glb"}\"")
                         })
                     }
                 ))
             }.body()
 
-            println("ApiService: Successfully compiled! ID: ${response.targetId}")
-            
-            // Refresh the list from the server to get the permanent URLs
             refreshTargets()
-            
             response
         } catch (e: Exception) {
             println("ApiService: ERROR submitting form: ${e.message}")
-            if (e.toString().contains("TypeError") || e.toString().contains("Fail to fetch")) {
-                println("ApiService: DETECTED FETCH FAILURE. Likely CORS or Server Unreachable.")
-            }
             throw e
         }
     }
 
-    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String): CompileResponse {
-        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name)
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, isVideo: Boolean, name: String): CompileResponse {
+        val response = compileMindAR(imageBlobUrl, contentBlobUrl, isVideo, name)
         deleteMindAR(targetId) 
         return response
     }

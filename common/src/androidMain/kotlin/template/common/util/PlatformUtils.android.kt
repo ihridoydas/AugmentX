@@ -51,7 +51,7 @@ actual object PlatformUtils {
         // Not implemented for Android
     }
 
-    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+    actual fun pickFile(allowedTypes: String, onPicked: (url: String, name: String) -> Unit) {
         // Not implemented for Android yet
     }
 

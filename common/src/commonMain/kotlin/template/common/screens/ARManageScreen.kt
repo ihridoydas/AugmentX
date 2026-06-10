@@ -15,14 +15,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.koin.compose.koinInject
 import template.common.components.AppBar
 import template.common.network.ApiService
 import template.common.network.ManagedARItem
+import template.common.util.PlatformUtils
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: () -> Unit) {
@@ -39,25 +45,41 @@ fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: (
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            FloatingActionButton(
+                onClick = onAdd,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
                 Icon(Icons.Default.Add, "Add New")
             }
         }
     ) { padding ->
         if (managedItems.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.CloudOff, null, Modifier.size(64.dp), tint = Color.Gray)
-                    Text("No AR targets found", color = Color.Gray)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff, 
+                        contentDescription = null, 
+                        modifier = Modifier.size(80.dp), 
+                        tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        "No AR targets found", 
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Button(onClick = onAdd) {
+                        Text("Create Your First Target")
+                    }
                 }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.padding(padding).fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(managedItems) { item ->
+                items(managedItems, key = { it.id }) { item ->
                     ManagedItemCard(
                         item = item,
                         onEdit = { onEdit(item) },
@@ -75,39 +97,102 @@ fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: (
 
 @Composable
 fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Unit) {
+    var imageBitmap by remember(item.targetImageUrl) { mutableStateOf<ImageBitmap?>(null) }
+    
+    LaunchedEffect(item.targetImageUrl) {
+        try {
+            val bytes = PlatformUtils.readBytes(item.targetImageUrl)
+            imageBitmap = bytes.decodeToImageBitmap()
+        } catch (e: Exception) {
+            println("Error loading image for card: ${e.message}")
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Thumbnail Image
             Box(
-                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (item.isVideo) Icons.Default.Videocam else Icons.Default.ViewInAr,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                if (imageBitmap != null) {
+                    Image(
+                        bitmap = imageBitmap!!,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (item.isVideo) Icons.Default.Videocam else Icons.Default.ViewInAr,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
             
             Spacer(Modifier.width(16.dp))
             
             Column(Modifier.weight(1f)) {
-                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(item.id, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(
+                    text = item.name, 
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                
+                Spacer(Modifier.height(4.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SuggestionChip(
+                        onClick = {},
+                        label = { 
+                            Text(
+                                if (item.isVideo) "Video AR" else "3D AR",
+                                fontSize = 10.sp
+                            ) 
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "ID: ${item.id.take(8)}...", 
+                        style = MaterialTheme.typography.labelSmall, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Default.Edit, "Edit", tint = MaterialTheme.colorScheme.primary)
-            }
-            
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+            Row {
+                IconButton(
+                    onClick = onEdit,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Edit, "Edit")
+                }
+                
+                IconButton(
+                    onClick = onDelete,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, "Delete")
+                }
             }
         }
     }

@@ -35,6 +35,7 @@ import template.common.util.PlatformUtils
 fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     val apiService: ApiService = koinInject()
     val managedItems by apiService.managedItems.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     
     val existingItem = remember(editId, managedItems) { 
         managedItems.find { it.id == editId } 
@@ -87,6 +88,7 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AppBar(
                 title = if (targetId == null) "Create AR Target" else "Update AR Target",
@@ -188,8 +190,16 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl
+                                    snackbarHostState.showSnackbar(
+                                        message = if (editId == null) "Target created successfully!" else "Target updated successfully!",
+                                        duration = SnackbarDuration.Short
+                                    )
                                 } catch (e: Throwable) {
                                     println("ARCreator: Error during compilation: ${e.message}")
+                                    snackbarHostState.showSnackbar(
+                                        message = "Error: ${e.message ?: "Failed to compile"}",
+                                        duration = SnackbarDuration.Long
+                                    )
                                 } finally {
                                     isCompiling = false
                                 }

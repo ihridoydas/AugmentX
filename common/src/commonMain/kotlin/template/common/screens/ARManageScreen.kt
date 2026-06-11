@@ -149,33 +149,64 @@ fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Uni
             Spacer(Modifier.width(16.dp))
             
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = item.name, 
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.name, 
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = if (item.isVideo) "VIDEO" else "MODEL",
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(6.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StatusBadge(label = "Target", isSuccess = item.imageUploaded)
+                    StatusBadge(label = if (item.isVideo) "Video" else "3D", isSuccess = item.contentUploaded)
+                    StatusBadge(label = "AR Data", isSuccess = item.mindGenerated)
+                }
                 
                 Spacer(Modifier.height(4.dp))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SuggestionChip(
-                        onClick = {},
-                        label = { 
-                            Text(
-                                if (item.isVideo) "Video AR" else "3D AR",
-                                fontSize = 10.sp
-                            ) 
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "ID: ${item.id.take(8)}...", 
-                        style = MaterialTheme.typography.labelSmall, 
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Text(
+                    text = "ID: ${item.id.take(8)}...", 
+                    style = MaterialTheme.typography.labelSmall, 
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                val fileName = item.contentUrl.substringAfterLast("/").substringAfter("_")
+                if (fileName.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (item.isVideo) Icons.Default.Movie else Icons.Default.Layers,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = fileName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
+                    }
                 }
             }
             
@@ -194,6 +225,33 @@ fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Uni
                     Icon(Icons.Default.Delete, "Delete")
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun StatusBadge(label: String, isSuccess: Boolean) {
+    Surface(
+        color = if (isSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+        shape = RoundedCornerShape(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                contentDescription = null,
+                tint = if (isSuccess) Color(0xFF2E7D32) else Color(0xFFC62828),
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (isSuccess) Color(0xFF2E7D32) else Color(0xFFC62828)
+            )
         }
     }
 }

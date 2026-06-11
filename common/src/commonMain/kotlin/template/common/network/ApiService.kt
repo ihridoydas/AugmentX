@@ -25,7 +25,10 @@ data class ManagedARItem(
     val contentUrl: String,
     val mindUrl: String,
     val isVideo: Boolean,
-    val createdAt: Long = 0
+    val createdAt: Long = 0,
+    val imageUploaded: Boolean = false,
+    val contentUploaded: Boolean = false,
+    val mindGenerated: Boolean = false
 )
 
 @Serializable
@@ -57,10 +60,21 @@ class ApiService(private val client: HttpClient) {
 
     suspend fun getPosts(): List<Post> = client.get("https://jsonplaceholder.typicode.com/posts").body()
 
-    suspend fun compileMindAR(imageBlobUrl: String, contentBlobUrl: String, name: String? = null): CompileResponse {
-        println("ApiService: Starting compilation for $name")
+    suspend fun compileMindAR(
+        imageBlobUrl: String, 
+        contentBlobUrl: String, 
+        name: String? = null,
+        isVideo: Boolean = false
+    ): CompileResponse {
+        println("ApiService: Starting compilation for $name (isVideo=$isVideo)")
         
-        // 1. Fetch local blobs using PlatformUtils
+        // 1. Determine extensions
+        val imageExt = if (imageBlobUrl.contains(".png", ignoreCase = true)) "png" else "jpg"
+        val contentExt = if (isVideo) "mp4" else {
+            if (contentBlobUrl.contains(".glb", ignoreCase = true)) "glb" else "glb" // Default to glb for models
+        }
+
+        // 2. Fetch local blobs using PlatformUtils
         val imageBytes = try {
             println("ApiService: Reading image bytes from $imageBlobUrl")
             PlatformUtils.readBytes(imageBlobUrl)
@@ -83,13 +97,14 @@ class ApiService(private val client: HttpClient) {
                 setBody(MultiPartFormDataContent(
                     formData {
                         append("name", name ?: "Unnamed")
+                        append("isVideo", isVideo.toString())
                         append("image", imageBytes, Headers.build {
-                            append(HttpHeaders.ContentType, "image/jpeg")
-                            append(HttpHeaders.ContentDisposition, "filename=\"target.jpg\"")
+                            append(HttpHeaders.ContentType, "image/$imageExt")
+                            append(HttpHeaders.ContentDisposition, "filename=\"target.$imageExt\"")
                         })
                         append("content", contentBytes, Headers.build {
-                            append(HttpHeaders.ContentType, "application/octet-stream")
-                            append(HttpHeaders.ContentDisposition, "filename=\"content.data\"")
+                            append(HttpHeaders.ContentType, if (isVideo) "video/mp4" else "application/octet-stream")
+                            append(HttpHeaders.ContentDisposition, "filename=\"content.$contentExt\"")
                         })
                     }
                 ))
@@ -110,8 +125,8 @@ class ApiService(private val client: HttpClient) {
         }
     }
 
-    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String): CompileResponse {
-        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name)
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean): CompileResponse {
+        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo)
         deleteMindAR(targetId) 
         return response
     }

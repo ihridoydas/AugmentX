@@ -25,7 +25,10 @@ data class ManagedARItem(
     val contentUrl: String,
     val mindUrl: String,
     val isVideo: Boolean,
-    val createdAt: Long = 0
+    val createdAt: Long = 0,
+    val imageUploaded: Boolean = false,
+    val contentUploaded: Boolean = false,
+    val mindGenerated: Boolean = false
 )
 
 @Serializable
@@ -99,17 +102,28 @@ fun main() {
                     var targetId = UUID.randomUUID().toString()
                     var targetImageUrl = ""
                     var contentUrl = ""
-                    var isVideo = false
+                    var isVideoValue: Boolean? = null
                     
                     val baseUrl = "http://127.0.0.1:8888/uploads"
 
                     multipart.forEachPart { part ->
                         when (part) {
                             is PartData.FormItem -> {
-                                if (part.name == "name") targetName = part.value
+                                when (part.name) {
+                                    "name" -> targetName = part.value
+                                    "isVideo" -> isVideoValue = part.value.toBoolean()
+                                }
                             }
                             is PartData.FileItem -> {
-                                val fileName = "${targetId}_${part.originalFileName ?: "file"}"
+                                val originalName = part.originalFileName ?: "file"
+                                val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
+                                    "${targetId}_content.mp4"
+                                } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
+                                    "${targetId}_content.glb"
+                                } else {
+                                    "${targetId}_$originalName"
+                                }
+                                
                                 val file = File(uploadDir, fileName)
                                 part.streamProvider().use { input ->
                                     file.outputStream().buffered().use { output ->
@@ -120,7 +134,10 @@ fun main() {
                                     targetImageUrl = "$baseUrl/$fileName"
                                 } else if (part.name == "content") {
                                     contentUrl = "$baseUrl/$fileName"
-                                    isVideo = fileName.contains(".mp4")
+                                    if (isVideoValue == null) {
+                                        isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
+                                                      part.contentType?.toString()?.contains("video") == true
+                                    }
                                 }
                                 println("Backend: Saved file $fileName")
                             }
@@ -129,6 +146,7 @@ fun main() {
                         part.dispose()
                     }
 
+                    val isVideo = isVideoValue ?: false
                     val mindFileName = "${targetId}.mind"
                     val mindFile = File(uploadDir, mindFileName)
                     mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
@@ -143,7 +161,10 @@ fun main() {
                         contentUrl = contentUrl,
                         mindUrl = mindUrl,
                         isVideo = isVideo,
-                        createdAt = System.currentTimeMillis()
+                        createdAt = System.currentTimeMillis(),
+                        imageUploaded = targetImageUrl.isNotEmpty(),
+                        contentUploaded = contentUrl.isNotEmpty(),
+                        mindGenerated = mindUrl.isNotEmpty()
                     )
                     items.add(newItem)
                     saveRegistry(items)

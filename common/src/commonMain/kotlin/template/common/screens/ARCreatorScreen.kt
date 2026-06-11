@@ -140,7 +140,8 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     onClick = {
                         PlatformUtils.pickFile(".glb,.mp4,video/*") { url -> 
                             contentUrl = url
-                            isVideo = url.contains(".mp4") || url.startsWith("blob:video") 
+                            isVideo = url.contains("video", ignoreCase = true) || 
+                                     url.contains(".mp4", ignoreCase = true)
                         }
                     }
                 )
@@ -184,9 +185,9 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                             scope.launch {
                                 try {
                                     val response = if (targetId == null) {
-                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName)
+                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
                                     } else {
-                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName)
+                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl

@@ -59,14 +59,17 @@ actual object PlatformUtils {
             val file = input.files?.item(0)
             if (file != null) {
                 val url = org.w3c.dom.url.URL.createObjectURL(file)
-                onPicked(url)
+                // Append original filename and type as a fragment hint for type detection
+                val hint = "#filename=${file.name}&type=${file.type}"
+                onPicked(url + hint)
             }
         }
         input.click()
     }
 
     actual suspend fun readBytes(url: String): ByteArray {
-        val response = window.fetch(url).await()
+        val cleanUrl = url.substringBefore("#")
+        val response = window.fetch(cleanUrl).await()
         val buffer = response.arrayBuffer().await()
         val uint8Array = Uint8Array(buffer)
         return ByteArray(uint8Array.length) { i -> uint8Array[i] }

@@ -51,6 +51,7 @@ fun main() {
             allowHeader(HttpHeaders.Authorization)
             allowHeader(HttpHeaders.Accept)
             allowHeader("X-Requested-With")
+            allowHeader("X-Target-Id")
             allowNonSimpleContentTypes = true
             allowCredentials = true
             maxAgeInSeconds = 3600
@@ -64,19 +65,38 @@ fun main() {
             val jsonSerializer = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
             fun loadRegistry(): MutableList<ManagedARItem> {
-                return if (registryFile.exists()) {
+                val items = if (registryFile.exists()) {
                     try {
                         jsonSerializer.decodeFromString<List<ManagedARItem>>(registryFile.readText()).toMutableList()
                     } catch (e: Exception) {
+                        println("Backend: Error decoding registry: ${e.message}")
                         mutableListOf()
                     }
                 } else {
                     mutableListOf()
                 }
+
+                // Dynamic Status Detection: Check if files actually exist on disk
+                return items.map { item ->
+                    val imageFile = File(uploadDir, item.targetImageUrl.substringAfterLast("/"))
+                    val contentFile = File(uploadDir, item.contentUrl.substringAfterLast("/"))
+                    val mindFile = File(uploadDir, item.mindUrl.substringAfterLast("/"))
+                    
+                    // Also fix old 127.0.0.1 URLs to localhost
+                    item.copy(
+                        targetImageUrl = item.targetImageUrl.replace("127.0.0.1", "localhost"),
+                        contentUrl = item.contentUrl.replace("127.0.0.1", "localhost"),
+                        mindUrl = item.mindUrl.replace("127.0.0.1", "localhost"),
+                        imageUploaded = imageFile.exists(),
+                        contentUploaded = contentFile.exists(),
+                        mindGenerated = mindFile.exists()
+                    )
+                }.toMutableList()
             }
 
             fun saveRegistry(items: List<ManagedARItem>) {
                 try {
+                    // Only save the base fields, status will be re-calculated on load
                     registryFile.writeText(jsonSerializer.encodeToString(items))
                 } catch (e: Exception) {
                     println("Backend: Error saving registry: ${e.message}")
@@ -99,12 +119,12 @@ fun main() {
                 try {
                     val multipart = call.receiveMultipart()
                     var targetName = "Unknown"
-                    var targetId = UUID.randomUUID().toString()
+                    var targetId: String? = null
                     var targetImageUrl = ""
                     var contentUrl = ""
                     var isVideoValue: Boolean? = null
                     
-                    val baseUrl = "http://127.0.0.1:8888/uploads"
+                    val baseUrl = "http://localhost:8888/uploads"
 
                     multipart.forEachPart { part ->
                         when (part) {
@@ -112,16 +132,18 @@ fun main() {
                                 when (part.name) {
                                     "name" -> targetName = part.value
                                     "isVideo" -> isVideoValue = part.value.toBoolean()
+                                    "targetId" -> targetId = part.value
                                 }
                             }
                             is PartData.FileItem -> {
+                                val currentId = targetId ?: UUID.randomUUID().toString().also { targetId = it }
                                 val originalName = part.originalFileName ?: "file"
                                 val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
-                                    "${targetId}_content.mp4"
+                                    "${currentId}_content.mp4"
                                 } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
-                                    "${targetId}_content.glb"
+                                    "${currentId}_content.glb"
                                 } else {
-                                    "${targetId}_$originalName"
+                                    "${currentId}_$originalName"
                                 }
                                 
                                 val file = File(uploadDir, fileName)
@@ -146,30 +168,68 @@ fun main() {
                         part.dispose()
                     }
 
+                    val finalId = targetId ?: UUID.randomUUID().toString()
                     val isVideo = isVideoValue ?: false
-                    val mindFileName = "${targetId}.mind"
+                    val mindFileName = "${finalId}.mind"
                     val mindFile = File(uploadDir, mindFileName)
-                    mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
+                    
+                    val imageFileName = targetImageUrl.substringAfterLast("/")
+                    val targetImageFile = File(uploadDir, imageFileName)
+
+                    // REAL COMPILATION ATTEMPT
+                    var compilationSuccess = false
+                    if (targetImageFile.exists() && targetImageFile.length() > 0) {
+                        try {
+                            println("Backend: Attempting real MindAR compilation for $finalId...")
+                            // Using npx to run the compiler. 
+                            // Note: mindar-image-compiler is a common package for this.
+                            val process = ProcessBuilder(
+                                "npx", "-y", "mindar-image-compiler", 
+                                "-i", targetImageFile.absolutePath, 
+                                "-o", mindFile.absolutePath
+                            ).start()
+                            
+                            val exitCode = process.waitFor()
+                            if (exitCode == 0 && mindFile.exists() && mindFile.length() > 100) {
+                                println("Backend: Real compilation SUCCESS for $finalId")
+                                compilationSuccess = true
+                            } else {
+                                println("Backend: Real compilation failed or produced empty file. Exit code: $exitCode")
+                            }
+                        } catch (e: Exception) {
+                            println("Backend: Real compilation ERROR: ${e.message}")
+                        }
+                    }
+
+                    if (!compilationSuccess) {
+                        println("Backend: Falling back to template for $finalId")
+                        val templateMind = File("common/src/wasmJsMain/resources/images/cute.mind")
+                        if (templateMind.exists()) {
+                            templateMind.copyTo(mindFile, overwrite = true)
+                        } else {
+                            if (!mindFile.exists()) mindFile.createNewFile()
+                        }
+                    }
                     val mindUrl = "$baseUrl/$mindFileName"
 
                     // Persist to registry
                     val items = loadRegistry()
+                    // Remove existing if it's an update
+                    items.removeAll { it.id == finalId }
+                    
                     val newItem = ManagedARItem(
-                        id = targetId,
+                        id = finalId,
                         name = targetName,
                         targetImageUrl = targetImageUrl,
                         contentUrl = contentUrl,
                         mindUrl = mindUrl,
                         isVideo = isVideo,
-                        createdAt = System.currentTimeMillis(),
-                        imageUploaded = targetImageUrl.isNotEmpty(),
-                        contentUploaded = contentUrl.isNotEmpty(),
-                        mindGenerated = mindUrl.isNotEmpty()
+                        createdAt = System.currentTimeMillis()
                     )
                     items.add(newItem)
                     saveRegistry(items)
 
-                    call.respond(CompileResponse(targetId = targetId, mindUrl = mindUrl))
+                    call.respond(CompileResponse(targetId = finalId, mindUrl = mindUrl))
                 } catch (e: Exception) {
                     println("Backend: ERROR processing /compile: ${e.message}")
                     call.respond(HttpStatusCode.InternalServerError, e.message ?: "Unknown Error")

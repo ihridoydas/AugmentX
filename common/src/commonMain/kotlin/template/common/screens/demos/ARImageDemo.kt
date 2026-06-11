@@ -3,92 +3,139 @@ package template.common.screens.demos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.network.ApiService
+import template.common.network.ManagedARItem
 
 @Composable
 fun ARImageDemo(onBack: () -> Unit) {
-    var showGuide by remember { mutableStateOf(false) }
+    val apiService: ApiService = koinInject()
+    val managedItems by apiService.managedItems.collectAsState()
+    var isLoading by remember { mutableStateOf(true) }
     
-    // Define image-to-model mapping
-    val imageTargetsMap = mapOf(
-        "images/earth.jpg" to "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
-        "images/cute.jpeg" to "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-    )
+    val modelItems = remember(managedItems) { 
+        val filtered = managedItems.filter { !it.isVideo && it.mindUrl.isNotEmpty() && it.contentUrl.isNotEmpty() }
+        println("ARImageDemo: Found ${filtered.size} model items (Total: ${managedItems.size})")
+        filtered
+    }
     
-    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-        SceneView(
-            modifier = Modifier.fillMaxSize(),
-            isAR = true,
-            arMode = ARMode.Image,
-            imageTargets = imageTargetsMap,
-            trackingImage = "images/cute.jpeg"
-        )
+    var selectedItem by remember { mutableStateOf<ManagedARItem?>(null) }
+    
+    LaunchedEffect(managedItems) {
+        // Stop loading once we get a response (even if empty)
+        if (managedItems.isNotEmpty() || apiService.managedItems.value.isEmpty()) {
+            delay(500) // Small delay to prevent flicker
+            isLoading = false
+        }
+    }
+    
+    LaunchedEffect(modelItems) {
+        if (selectedItem == null && modelItems.isNotEmpty()) {
+            selectedItem = modelItems.first()
+        }
+    }
 
-        // Overlay UI
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f))) {
+    Box(modifier = Modifier.fillMaxSize().background(if (selectedItem == null) Color(0xFF121212) else Color.Transparent)) {
+        if (isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else if (selectedItem != null) {
+            // Key is used to force SceneView to restart when target changes
+            key(selectedItem?.id) {
+                SceneView(
+                    modifier = Modifier.fillMaxSize(),
+                    isAR = true,
+                    arMode = ARMode.Image,
+                    trackingImage = selectedItem?.mindUrl,
+                    modelUrl = selectedItem?.contentUrl
+                )
+            }
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.ViewInAr, null, modifier = Modifier.size(64.dp), tint = Color.White.copy(alpha = 0.5f))
+                    Spacer(Modifier.height(16.dp))
+                    Text("No 3D AR Targets found.\nCreate some in Manage screen!", color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            }
+        }
+
+        // Overlay UI - Use a Box with children to avoid blocking clicks in the center
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f)).align(Alignment.TopCenter)) {
                 AppBar(
-                    title = "AR Image Mapping",
+                    title = "AR Model Viewer",
                     navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                     onNav = onBack,
                 )
             }
             
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Simplified Bottom Guide
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(24.dp)
-                    .clickable { showGuide = !showGuide },
-                color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            if (modelItems.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
+                    color = Color.Black.copy(alpha = 0.6f),
                 ) {
-                    if (showGuide) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                    Column(Modifier.padding(vertical = 12.dp)) {
+                        Text(
+                            "Select Target to Track:",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color.Gray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Chibi", color = Color.White, fontSize = 10.sp)
+                            items(modelItems) { item ->
+                                val isSelected = selectedItem?.id == item.id
+                                Surface(
+                                    modifier = Modifier
+                                        .width(120.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { selectedItem = item },
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            item.name, 
+                                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            "Target: ${item.id.take(4)}",
+                                            color = if (isSelected) Color.White.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f),
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
                             }
-                            Text(
-                                text = "Point at cute.jpeg to see the Astronaut",
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
                         }
-                    } else {
-                        Text(
-                            text = "Tap for tracking guide",
-                            color = Color.White.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.labelMedium
-                        )
                     }
                 }
             }

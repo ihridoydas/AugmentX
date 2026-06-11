@@ -21,7 +21,7 @@ fun ARFaceDemo(onBack: () -> Unit) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Black,
+        containerColor = Color.Transparent,
         topBar = {
             AppBar(
                 title = "AR Augmented Faces",

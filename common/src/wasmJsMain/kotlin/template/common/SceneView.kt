@@ -43,19 +43,15 @@ actual fun SceneView(
     // Cleanup on dispose
     DisposableEffect(Unit) {
         onDispose {
-            try {
-                callStopWebAR()
-            } catch (e: Exception) {
-                println("SceneView Dispose Error: ${e.message}")
-            }
+            callStopWebAR()
         }
     }
 
-    if (!isAR || arMode != ARMode.Image) {
+    if (!isAR) {
         // Standard 3D Viewer (Model Viewer)
         val container = remember { (document.createElement("div") as HTMLElement) }
         val primaryUrl = modelUrl ?: modelUrls.firstOrNull() ?: ""
-        
+
         if (primaryUrl.isNotBlank()) {
             LaunchedEffect(primaryUrl, autoRotate) {
                 container.setAttribute("style", "width: 100%; height: 100%; background: transparent; position: absolute; top: 0; left: 0;")
@@ -74,11 +70,9 @@ actual fun SceneView(
                 if (viewerContainer != null) {
                     viewerContainer.appendChild(container)
                     viewerContainer.style.display = "block"
-                    viewerContainer.style.top = "64px"
-                    viewerContainer.style.height = "calc(100dvh - 64px)"
                     viewerContainer.style.zIndex = "20"
                 }
-                onDispose { 
+                onDispose {
                     try { container.parentNode?.removeChild(container) } catch(e:Exception) {}
                     if (viewerContainer?.children?.length == 0) viewerContainer.style.display = "none"
                 }
@@ -87,81 +81,75 @@ actual fun SceneView(
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (isAR && arMode == ARMode.Image) {
-            if (!arStarted) {
-                // Initial "Start AR" button to satisfy browser autoplay/camera policies
-                Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black).clickable {
-                        // SMART URL RESOLUTION
-                        val isAbsolute = trackingImage?.startsWith("http") == true || trackingImage?.startsWith("blob:") == true
-                        val mindFile = if (isAbsolute) {
-                            trackingImage!!
-                        } else {
-                            trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { 
-                                if (it.startsWith("/")) it else "/$it" 
-                            } ?: "/images/cute.mind"
-                        }
-                        
-                        println("SceneView: Starting AR with MindFile: $mindFile")
+        if (isAR && (arMode == ARMode.Image || arMode == ARMode.Face) && !arStarted) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black).clickable {
+                    // Resolve MindFile Path
+                    val isAbsolute = trackingImage?.startsWith("http") == true || trackingImage?.startsWith("blob:") == true
+                    val mindFile = if (isAbsolute) {
+                        trackingImage!!
+                    } else {
+                        trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind") ?: "/images/cute.mind"
+                    }
 
-                        val modelAssets = mutableListOf<String>()
-                        val modelEntities = mutableListOf<String>()
+                    val modelAssets = mutableListOf<String>()
+                    val modelEntities = mutableListOf<String>()
 
-                        // If it's a video-only request (like ARVideoDemo)
-                        if (videoUrl != null && imageTargets.isEmpty()) {
-                            modelAssets.add("<video id=\"arVideo\" src=\"$videoUrl\" loop=\"true\" crossorigin=\"anonymous\" playsinline webkit-playsinline preload=\"auto\"></video>")
-                            modelEntities.add("<a-entity mindar-image-target=\"targetIndex: 0\"><a-video src=\"#arVideo\" width=\"1\" height=\"0.56\" position=\"0 0 0\" material=\"shader: flat; src: #arVideo\"></a-video></a-entity>")
-                        } else {
-                            // Unified target mapping
-                            val allTargets = mutableListOf<String>()
-                            trackingImage?.let { allTargets.add(it) }
-                            imageTargets.keys.forEach { if (!allTargets.contains(it)) allTargets.add(it) }
+                    // Handle Video or Model from imageTargets registry
+                    val allTargets = mutableListOf<String>()
+                    trackingImage?.let { allTargets.add(it) }
+                    imageTargets.keys.forEach { if (!allTargets.contains(it)) allTargets.add(it) }
 
-                            allTargets.forEachIndexed { index, path ->
-                                val content = if (path == trackingImage) (modelUrl ?: imageTargets[path]) else imageTargets[path]
-                                if (content != null) {
-                                    val id = "asset_$index"
-                                    if (content.endsWith(".mp4") || content.contains("video")) {
-                                        modelAssets.add("<video id=\"$id\" src=\"$content\" loop=\"true\" crossorigin=\"anonymous\" playsinline webkit-playsinline preload=\"auto\"></video>")
-                                        modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-video src=\"#$id\" width=\"1\" height=\"0.56\" position=\"0 0 0\" material=\"shader: flat; src: #$id\"></a-video></a-entity>")
-                                    } else {
-                                        modelAssets.add("<a-asset-item id=\"$id\" src=\"$content\"></a-asset-item>")
-                                        modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"0.5 0.5 0.5\"></a-gltf-model></a-entity>")
-                                    }
-                                }
+                    allTargets.forEachIndexed { index, path ->
+                        val content = if (path == trackingImage) (modelUrl ?: videoUrl ?: imageTargets[path]) else imageTargets[path]
+                        if (content != null) {
+                            val id = "asset_$index"
+                            // Detect if content is video
+                            if (content.endsWith(".mp4") || content.contains("video") || content.startsWith("blob:video")) {
+                                modelAssets.add("<video id=\"$id\" class=\"ar-video-asset\" src=\"$content\" loop=\"true\" crossorigin=\"anonymous\" playsinline webkit-playsinline preload=\"auto\"></video>")
+                                modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-video src=\"#$id\" width=\"1\" height=\"0.56\" position=\"0 0 0\"></a-video></a-entity>")
+                            } else {
+                                modelAssets.add("<a-asset-item id=\"$id\" src=\"$content\"></a-asset-item>")
+                                modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"0.5 0.5 0.5\"></a-gltf-model></a-entity>")
                             }
                         }
-
-                        val html = """
-                            <a-scene 
-                                mindar-image="imageTargetSrc: $mindFile; autoStart: true; uiScanning: yes; uiLoading: yes;" 
-                                embedded="false" renderer="alpha: true; colorManagement: true; antialias: true;"
-                                vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
-                                style="width: 100vw; height: 100vh; background: transparent;">
-                                <a-assets>${modelAssets.joinToString("")}</a-assets>
-                                <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-                                ${modelEntities.joinToString("")}
-                            </a-scene>
-                        """.trimIndent()
-
-                        try {
-                            callStartWebAR(mindFile, html)
-                            arStarted = true
-                            onModelLoaded()
-                        } catch (e: Exception) {
-                            println("SceneView Error: ${e.message}")
-                        }
-                    },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "Tap to Start Web AR", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-                        Text(text = "Ensure camera permission is granted", color = Color.White.copy(0.7f), style = MaterialTheme.typography.bodySmall)
                     }
+
+                    val sceneConfig = if (arMode == ARMode.Face) {
+                        "mindar-face=\"autoStart: true; uiScanning: yes; uiLoading: yes;\""
+                    } else {
+                        "mindar-image=\"imageTargetSrc: $mindFile; autoStart: true; uiScanning: yes; uiLoading: yes;\""
+                    }
+
+                    val html = """
+                        <a-scene 
+                            $sceneConfig
+                            embedded="false" renderer="alpha: true; colorManagement: true; antialias: true;"
+                            vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+                            style="width: 100vw; height: 100vh; background: transparent;">
+                            <a-assets>${modelAssets.joinToString("")}</a-assets>
+                            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                            ${modelEntities.joinToString("")}
+                        </a-scene>
+                    """.trimIndent()
+
+                    try {
+                        callStartWebAR(mindFile, html)
+                        arStarted = true
+                        onModelLoaded()
+                    } catch (e: Exception) {
+                        println("SceneView Start Error: ${e.message}")
+                    }
+                },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Tap to Start Web AR", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                    Text(text = "Ensure camera permission is granted", color = Color.White.copy(0.7f), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

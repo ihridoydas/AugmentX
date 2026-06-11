@@ -93,7 +93,11 @@
             display: none;
         }
 
-        video:not(#arVideo) {
+        video.ar-video-asset {
+            display: none !important;
+        }
+
+        video:not(.ar-video-asset) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -103,8 +107,6 @@
             z-index: 0 !important;
             margin: 0 !important;
         }
-
-        #arVideo { display: none; }
 
         canvas.a-canvas {
             position: fixed !important;
@@ -229,18 +231,11 @@
 
             container.innerHTML = finalHtml;
 
-            // SMART DEBUG: Check if .mind file is reachable from JS
-            fetch(fullMindPath, {method: 'HEAD'}).then(r => {
-                if (r.ok) screenLog("MindFile Reachable: YES");
-                else screenLog("MindFile Reachable: NO (Status " + r.status + ")");
-            }).catch(err => screenLog("MindFile Fetch Error: " + err.message));
-
-            const video = container.querySelector('#arVideo');
-            if (video) {
-                video.addEventListener('loadeddata', () => screenLog("Video Loaded Data"));
-                video.addEventListener('canplaythrough', () => screenLog("Video Can Play Through"));
-                video.addEventListener('error', (e) => screenLog("Video Error: " + (video.error ? video.error.message : "Unknown")));
-            }
+            container.querySelectorAll('video.ar-video-asset').forEach(video => {
+                video.addEventListener('loadeddata', () => screenLog("Video Loaded Data: " + video.id));
+                video.addEventListener('canplaythrough', () => screenLog("Video Can Play Through: " + video.id));
+                video.addEventListener('error', (e) => screenLog("Video Error (" + video.id + "): " + (video.error ? video.error.message : "Unknown")));
+            });
 
             const sceneEl = container.querySelector('a-scene');
             if (sceneEl) {
@@ -258,35 +253,27 @@
                         if (isMatch) {
                             t.setAttribute('visible', 'true');
                             t.querySelectorAll('*').forEach(c => c.setAttribute('visible', 'true'));
+
+                            // Start video if it's in this target
+                            const aVideo = t.querySelector('a-video');
+                            if (aVideo) {
+                                const vSrc = aVideo.getAttribute('src');
+                                const video = document.querySelector(vSrc);
+                                if (video) {
+                                    screenLog("Target Found - Playing Video: " + video.id);
+                                    video.muted = true;
+                                    video.play().catch(err => {
+                                        screenLog("Play failed: " + err.message + ". Tap screen to play.");
+                                        const forcePlay = () => {
+                                            video.play().then(() => screenLog("Video started by click")).catch(e => screenLog("Click play failed: " + e.message));
+                                        };
+                                        document.addEventListener('click', forcePlay, { once: true });
+                                        document.addEventListener('touchstart', forcePlay, { once: true });
+                                    });
+                                }
+                            }
                         }
                     });
-
-                    // Start video if it's the target
-                    const video = document.getElementById("arVideo");
-                    if (video) {
-                        screenLog("Target Found - Attempting to play with sound...");
-
-                        // 1. Try playing with sound (User has already interacted to start AR)
-                        video.muted = false;
-                        video.play().then(() => {
-                            screenLog("Video playing WITH AUDIO");
-                        }).catch(err => {
-                            screenLog("Unmuted autoplay blocked. Playing muted...");
-                            // 2. Fallback to muted if unmuted is blocked
-                            video.muted = true;
-                            video.play().then(() => {
-                                screenLog("Video playing (muted). TAP SCREEN TO UNMUTE.");
-                                // 3. One-time tap listener to unmute
-                                const forceUnmute = () => {
-                                    video.muted = false;
-                                    video.play();
-                                    screenLog("Audio enabled via user tap.");
-                                };
-                                document.addEventListener('click', forceUnmute, { once: true });
-                                document.addEventListener('touchstart', forceUnmute, { once: true });
-                            });
-                        });
-                    }
                 });
 
                 sceneEl.addEventListener('targetLost', (e) => {
@@ -294,24 +281,22 @@
                     sceneEl.querySelectorAll('[mindar-image-target]').forEach(t => {
                         const attr = t.getAttribute('mindar-image-target');
                         let isMatch = (typeof attr === 'string') ? attr.replace(/\s/g, '').includes("targetIndex:" + idx) : (attr && attr.targetIndex == idx);
-                        if (isMatch) t.setAttribute('visible', 'false');
+                        if (isMatch) {
+                            t.setAttribute('visible', 'false');
+                            const aVideo = t.querySelector('a-video');
+                            if (aVideo) {
+                                const vSrc = aVideo.getAttribute('src');
+                                const video = document.querySelector(vSrc);
+                                if (video && !video.paused) video.pause();
+                            }
+                        }
                     });
-
-                    // Pause video
-                    const video = document.getElementById("arVideo");
-                    if (video && !video.paused) video.pause();
                 });
 
                 sceneEl.addEventListener('loaded', () => {
-                    screenLog("A-Frame Scene Loaded");
                     setTimeout(() => {
                         const system = sceneEl.systems && sceneEl.systems['mindar-image-system'];
-                        if (system) {
-                            screenLog("MindAR System starting...");
-                            system.start();
-                        } else {
-                            screenLog("ERROR: MindAR System NOT FOUND");
-                        }
+                        if (system) { system.start(); screenLog("Scanning..."); }
                     }, 1000);
                 });
             }
@@ -320,7 +305,7 @@
         if (arIntervalId) clearInterval(arIntervalId);
         arIntervalId = setInterval(() => {
             if (document.body.classList.contains('ar-active')) {
-                document.querySelectorAll('video:not(#arVideo)').forEach(v => {
+                document.querySelectorAll('video:not(.ar-video-asset)').forEach(v => {
                     v.style.cssText = "width:100vw; height:100dvh; position:fixed; object-fit:cover; top:0; left:0;";
                 });
             }

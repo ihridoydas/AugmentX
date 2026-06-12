@@ -36,6 +36,8 @@ import org.khronos.webgl.get
 import org.khronos.webgl.ArrayBuffer
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = true
+
     actual fun changeLanguage(code: String) {
         val lang = if (code.isEmpty()) "en" else code
         document.documentElement?.setAttribute("lang", lang)

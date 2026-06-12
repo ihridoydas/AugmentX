@@ -1,1 +1,11 @@
-[]
+[
+    {
+        "id": "36659bb0-8d32-47e1-bf11-d731e10ce047",
+        "name": "huh",
+        "targetImageUrl": "http://localhost:8888/uploads/36659bb0-8d32-47e1-bf11-d731e10ce047_target.jpg",
+        "contentUrl": "http://localhost:8888/uploads/36659bb0-8d32-47e1-bf11-d731e10ce047_content.mp4",
+        "mindUrl": "http://localhost:8888/uploads/36659bb0-8d32-47e1-bf11-d731e10ce047.mind",
+        "isVideo": true,
+        "createdAt": 1781286441257
+    }
+]

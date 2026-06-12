@@ -25,6 +25,8 @@
 package template.common.util
 
 expect object PlatformUtils {
+    val isWeb: Boolean
+
     fun changeLanguage(code: String)
 
     fun changeTheme(isDark: Boolean)

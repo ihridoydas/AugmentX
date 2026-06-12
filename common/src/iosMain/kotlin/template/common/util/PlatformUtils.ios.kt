@@ -27,6 +27,8 @@ package template.common.util
 import platform.Foundation.NSUserDefaults
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = false
+
     actual fun changeLanguage(code: String) {
         val defaults = NSUserDefaults.standardUserDefaults
         if (code.isEmpty()) {

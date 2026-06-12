@@ -28,6 +28,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = false
+
     actual fun changeLanguage(code: String) {
         val appLocale = LocaleListCompat.forLanguageTags(code)
         if (AppCompatDelegate.getApplicationLocales() != appLocale) {

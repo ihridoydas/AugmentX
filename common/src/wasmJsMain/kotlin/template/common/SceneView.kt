@@ -20,46 +20,70 @@ actual fun SceneView(
     modifier: Modifier,
     modelUrl: String?,
     modelUrls: List<String>,
+    videoUrl: String?,
     isAR: Boolean,
+    arMode: ARMode,
+    trackingImage: String?,
+    imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
     onModelLoaded: () -> Unit
 ) {
-    val allUrls = remember(modelUrl, modelUrls) {
-        if (modelUrl != null) listOf(modelUrl) + modelUrls else modelUrls
+    val allUrls = remember(modelUrl, modelUrls, imageTargets) {
+        val targets = imageTargets.values.toList()
+        (if (modelUrl != null) listOf(modelUrl) else emptyList()) + modelUrls + targets
     }
     
-    if (allUrls.isEmpty()) return
+    if (allUrls.isEmpty() && videoUrl == null) return
 
-    var isLoading by remember(allUrls) { mutableStateOf(true) }
+    var isLoading by remember(allUrls, videoUrl) { mutableStateOf(true) }
     var bounds by remember { mutableStateOf(IntRect.Zero) }
     
-    val container = remember(allUrls, isAR, autoRotate) {
+    val container = remember(allUrls, videoUrl, isAR, autoRotate) {
         (document.createElement("div") as HTMLElement).apply {
             setAttribute("style", "position:fixed; z-index: 999; pointer-events: auto; display: block; opacity: 0;")
             
             val modelsHtml = allUrls.joinToString("\n") { url ->
-                "<model-viewer src=\"$url\" ${if (autoRotate) "auto-rotate" else ""} camera-controls ${if (isAR) "ar" else ""} style=\"width:100%; height:100%; position:absolute; top:0; left:0;\"></model-viewer>"
+                """
+                <model-viewer 
+                    src="$url" 
+                    ${if (autoRotate) "auto-rotate" else ""} 
+                    camera-controls 
+                    ${if (isAR) "ar ar-modes=\"webxr scene-viewer quick-look\"" else ""} 
+                    style="width:100%; height:100%; position:absolute; top:0; left:0;">
+                </model-viewer>
+                """.trimIndent()
             }
             
-            innerHTML = modelsHtml
+            val videoHtml = if (videoUrl != null) {
+                "<video src=\"$videoUrl\" autoplay loop muted style=\"width:100%; height:100%; position:absolute; top:0; left:0; object-fit:cover; z-index:-1;\"></video>"
+            } else ""
+            
+            innerHTML = videoHtml + modelsHtml
             
             val mvs = children
             var loadedCount = 0
-            for (i in 0 until mvs.length) {
-                mvs.item(i)?.addEventListener("load", { 
-                    loadedCount++
-                    if (loadedCount >= allUrls.size) {
-                        isLoading = false
-                        onModelLoaded()
+            if (allUrls.isNotEmpty()) {
+                for (i in 0 until mvs.length) {
+                    val el = mvs.item(i)
+                    if (el?.tagName?.lowercase() == "model-viewer") {
+                        el.addEventListener("load", { 
+                            loadedCount++
+                            if (loadedCount >= allUrls.size) {
+                                isLoading = false
+                                onModelLoaded()
+                            }
+                        })
                     }
-                })
+                }
+            } else {
+                isLoading = false
             }
         }
     }
 
     // Force show after a few seconds
-    LaunchedEffect(allUrls) {
+    LaunchedEffect(allUrls, videoUrl) {
         kotlinx.coroutines.delay(8000)
         isLoading = false
     }

@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
 
@@ -29,7 +30,8 @@ fun ARDepthOcclusionDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-                isAR = true
+                isAR = true,
+                arMode = ARMode.Depth
             )
 
             Card(
@@ -39,7 +41,7 @@ fun ARDepthOcclusionDemo(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Virtual objects are occluded by real-world geometry.",
+                    text = "Virtual objects are occluded by real-world geometry using ARCore Depth API.",
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
                 )

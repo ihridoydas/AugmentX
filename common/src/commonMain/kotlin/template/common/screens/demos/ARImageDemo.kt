@@ -25,7 +25,6 @@ fun ARImageDemo(onBack: () -> Unit) {
     
     // Define image-to-model mapping
     val imageTargetsMap = mapOf(
-        "images/earth.jpg" to "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
         "images/cute.jpeg" to "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
     )
     

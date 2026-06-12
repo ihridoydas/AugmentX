@@ -266,7 +266,7 @@ actual fun SceneView(
                                 }
                             }
                         } else {
-                            val targetModelUrl = if (image.name == trackingImage) modelUrl else imageTargets[image.name]
+                            val targetModelUrl = imageTargets[image.name] ?: if (image.name == trackingImage) modelUrl else null
                             val buffer = targetModelUrl?.let { modelBuffers[it] }
                             if (buffer != null) {
                                 AugmentedImageNode(augmentedImage = image, applyImageScale = true) {

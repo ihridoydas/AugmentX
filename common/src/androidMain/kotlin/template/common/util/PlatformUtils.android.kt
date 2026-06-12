@@ -67,4 +67,12 @@ actual object PlatformUtils {
             ByteArray(0)
         }
     }
+
+    actual suspend fun compileImage(url: String): ByteArray {
+        return ByteArray(0) // Not implemented for Android yet
+    }
+
+    actual fun createUrlFromBytes(bytes: ByteArray): String {
+        return "" // Not implemented for Android yet
+    }
 }

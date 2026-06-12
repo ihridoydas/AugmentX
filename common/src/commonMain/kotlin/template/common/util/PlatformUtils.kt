@@ -34,4 +34,8 @@ expect object PlatformUtils {
     fun pickFile(allowedTypes: String, onPicked: (String) -> Unit)
 
     suspend fun readBytes(url: String): ByteArray
+
+    suspend fun compileImage(url: String): ByteArray
+
+    fun createUrlFromBytes(bytes: ByteArray): String
 }

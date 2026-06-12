@@ -177,6 +177,7 @@ actual fun SceneView(
                     """.trimIndent()
 
                     try {
+                        println("SceneView: Starting AR with mindFile: $mindFile")
                         callStartWebAR(mindFile, html)
                         arStarted = true
                         onModelLoaded()

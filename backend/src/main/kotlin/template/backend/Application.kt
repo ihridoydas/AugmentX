@@ -123,6 +123,7 @@ fun main() {
                     var targetImageUrl = ""
                     var contentUrl = ""
                     var isVideoValue: Boolean? = null
+                    var providedMindBytes: ByteArray? = null
                     
                     val baseUrl = "http://localhost:8888/uploads"
 
@@ -136,32 +137,36 @@ fun main() {
                                 }
                             }
                             is PartData.FileItem -> {
-                                val currentId = targetId ?: UUID.randomUUID().toString().also { targetId = it }
-                                val originalName = part.originalFileName ?: "file"
-                                val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
-                                    "${currentId}_content.mp4"
-                                } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
-                                    "${currentId}_content.glb"
+                                if (part.name == "mind") {
+                                    providedMindBytes = part.streamProvider().readBytes()
                                 } else {
-                                    "${currentId}_$originalName"
-                                }
-                                
-                                val file = File(uploadDir, fileName)
-                                part.streamProvider().use { input ->
-                                    file.outputStream().buffered().use { output ->
-                                        input.copyTo(output)
+                                    val currentId = targetId ?: UUID.randomUUID().toString().also { targetId = it }
+                                    val originalName = part.originalFileName ?: "file"
+                                    val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
+                                        "${currentId}_content.mp4"
+                                    } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
+                                        "${currentId}_content.glb"
+                                    } else {
+                                        "${currentId}_$originalName"
                                     }
-                                }
-                                if (part.name == "image") {
-                                    targetImageUrl = "$baseUrl/$fileName"
-                                } else if (part.name == "content") {
-                                    contentUrl = "$baseUrl/$fileName"
-                                    if (isVideoValue == null) {
-                                        isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
-                                                      part.contentType?.toString()?.contains("video") == true
+                                    
+                                    val file = File(uploadDir, fileName)
+                                    part.streamProvider().use { input ->
+                                        file.outputStream().buffered().use { output ->
+                                            input.copyTo(output)
+                                        }
                                     }
+                                    if (part.name == "image") {
+                                        targetImageUrl = "$baseUrl/$fileName"
+                                    } else if (part.name == "content") {
+                                        contentUrl = "$baseUrl/$fileName"
+                                        if (isVideoValue == null) {
+                                            isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
+                                                          part.contentType?.toString()?.contains("video") == true
+                                        }
+                                    }
+                                    println("Backend: Saved file $fileName")
                                 }
-                                println("Backend: Saved file $fileName")
                             }
                             else -> {}
                         }
@@ -173,41 +178,59 @@ fun main() {
                     val mindFileName = "${finalId}.mind"
                     val mindFile = File(uploadDir, mindFileName)
                     
-                    val imageFileName = targetImageUrl.substringAfterLast("/")
-                    val targetImageFile = File(uploadDir, imageFileName)
+                    if (providedMindBytes != null) {
+                        println("Backend: Using PROVIDED mind file for $finalId")
+                        mindFile.writeBytes(providedMindBytes!!)
+                    } else {
+                        val imageFileName = targetImageUrl.substringAfterLast("/")
+                        val targetImageFile = File(uploadDir, imageFileName)
 
-                    // REAL COMPILATION ATTEMPT
-                    var compilationSuccess = false
-                    if (targetImageFile.exists() && targetImageFile.length() > 0) {
-                        try {
-                            println("Backend: Attempting real MindAR compilation for $finalId...")
-                            // Using npx to run the compiler. 
-                            // Note: mindar-image-compiler is a common package for this.
-                            val process = ProcessBuilder(
-                                "npx", "-y", "mindar-image-compiler", 
-                                "-i", targetImageFile.absolutePath, 
-                                "-o", mindFile.absolutePath
-                            ).start()
-                            
-                            val exitCode = process.waitFor()
-                            if (exitCode == 0 && mindFile.exists() && mindFile.length() > 100) {
-                                println("Backend: Real compilation SUCCESS for $finalId")
-                                compilationSuccess = true
-                            } else {
-                                println("Backend: Real compilation failed or produced empty file. Exit code: $exitCode")
+                        // REAL COMPILATION ATTEMPT
+                        var compilationSuccess = false
+                        if (targetImageFile.exists() && targetImageFile.length() > 0) {
+                            try {
+                                println("Backend: Attempting real MindAR compilation for $finalId...")
+                                // Using npx to run the compiler. 
+                                // Note: mindar-image-compiler is a common package for this.
+                                val process = ProcessBuilder(
+                                    "npx", "-y", "mindar-image-compiler", 
+                                    "-i", targetImageFile.absolutePath, 
+                                    "-o", mindFile.absolutePath
+                                ).start()
+                                
+                                val exitCode = process.waitFor()
+                                if (exitCode == 0 && mindFile.exists() && mindFile.length() > 100) {
+                                    println("Backend: Real compilation SUCCESS for $finalId")
+                                    compilationSuccess = true
+                                } else {
+                                    println("Backend: Real compilation failed or produced empty file. Exit code: $exitCode")
+                                }
+                            } catch (e: Exception) {
+                                println("Backend: Real compilation ERROR: ${e.message}")
                             }
-                        } catch (e: Exception) {
-                            println("Backend: Real compilation ERROR: ${e.message}")
                         }
-                    }
 
-                    if (!compilationSuccess) {
-                        println("Backend: Falling back to template for $finalId")
-                        val templateMind = File("common/src/wasmJsMain/resources/images/cute.mind")
-                        if (templateMind.exists()) {
-                            templateMind.copyTo(mindFile, overwrite = true)
-                        } else {
-                            if (!mindFile.exists()) mindFile.createNewFile()
+                        if (!compilationSuccess) {
+                            println("Backend: Falling back to template for $finalId")
+                            // Try multiple possible locations for the template
+                            val templateLocations = listOf(
+                                File("common/src/wasmJsMain/resources/images/cute.mind"),
+                                File("../common/src/wasmJsMain/resources/images/cute.mind"),
+                                File("src/main/resources/cute.mind")
+                            )
+                            
+                            val templateMind = templateLocations.find { it.exists() }
+                            if (templateMind != null) {
+                                templateMind.copyTo(mindFile, overwrite = true)
+                                println("Backend: Used template from ${templateMind.absolutePath}")
+                            } else {
+                                println("Backend: SEVERE - No template found, creating dummy valid header")
+                                // A very basic valid-ish mind file header or just avoid creating it
+                                if (!mindFile.exists()) {
+                                    // Don't create empty file, it causes crash. 
+                                    // Better to let it fail 404 than 0-byte RangeError
+                                }
+                            }
                         }
                     }
                     val mindUrl = "$baseUrl/$mindFileName"

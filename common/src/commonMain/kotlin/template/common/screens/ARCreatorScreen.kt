@@ -49,8 +49,11 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     var showAR by remember { mutableStateOf(false) }
     var targetId by remember { mutableStateOf(existingItem?.id) }
     var compiledMindUrl by remember { mutableStateOf(existingItem?.mindUrl) }
+    var localMindBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var isGeneratingMind by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+    val activeMindUrl = compiledMindUrl ?: (if (localMindBytes != null) "In-App Generated" else null)
 
     LaunchedEffect(existingItem) {
         existingItem?.let {
@@ -63,14 +66,21 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
         }
     }
 
-    if (showAR && compiledMindUrl != null && contentUrl != null) {
-        // ... (SceneView logic remains same)
+    if (showAR && (localMindBytes != null || compiledMindUrl != null) && contentUrl != null) {
+        val trackingUrl = remember(localMindBytes, compiledMindUrl) {
+            localMindBytes?.let { 
+                val url = PlatformUtils.createUrlFromBytes(it)
+                println("ARCreator: Using local blob for testing: $url")
+                url
+            } ?: compiledMindUrl!!
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 isAR = true,
                 arMode = ARMode.Image,
-                trackingImage = compiledMindUrl,
+                trackingImage = trackingUrl,
                 videoUrl = if (isVideo) contentUrl else null,
                 modelUrl = if (!isVideo) contentUrl else null,
                 onModelLoaded = { /* Ready */ }
@@ -120,7 +130,7 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CreatorStep(
                     title = "1. Select Tracking Image",
-                    description = "JPG/PNG image to be tracked.",
+                    description = "JPG/PNG image to be tracked. (The 'poster' for your content)",
                     isDone = targetImageUrl != null,
                     onClick = {
                         PlatformUtils.pickFile("image/*") { url -> targetImageUrl = url }
@@ -138,10 +148,11 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     description = "GLB model or MP4 video.",
                     isDone = contentUrl != null,
                     onClick = {
-                        PlatformUtils.pickFile(".glb,.mp4,video/*") { url -> 
+                        PlatformUtils.pickFile(".glb,.mp4,.mov,video/*") { url -> 
                             contentUrl = url
                             isVideo = url.contains("video", ignoreCase = true) || 
-                                     url.contains(".mp4", ignoreCase = true)
+                                     url.contains(".mp4", ignoreCase = true) ||
+                                     url.contains(".mov", ignoreCase = true)
                         }
                     }
                 )
@@ -150,13 +161,43 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                 }
             }
 
-            if (compiledMindUrl != null) {
+            // Step 3: Generate Mind File In-App
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CreatorStep(
+                    title = "3. Generate Tracking Data",
+                    description = "Create the .mind file inside the app.",
+                    isDone = localMindBytes != null,
+                    isLoading = isGeneratingMind,
+                    onClick = {
+                        if (targetImageUrl != null) {
+                            isGeneratingMind = true
+                            scope.launch {
+                                try {
+                                    localMindBytes = PlatformUtils.compileImage(targetImageUrl!!)
+                                    snackbarHostState.showSnackbar("Tracking data generated successfully!")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("Generation failed: ${e.message}")
+                                } finally {
+                                    isGeneratingMind = false
+                                }
+                            }
+                        } else {
+                            scope.launch { snackbarHostState.showSnackbar("Select a tracking image first!") }
+                        }
+                    }
+                )
+                if (localMindBytes != null) {
+                    Text("In-app mind file ready for upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            if (compiledMindUrl != null && localMindBytes == null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("Current .mind File:", fontWeight = FontWeight.Bold)
+                        Text("Existing Server .mind File:", fontWeight = FontWeight.Bold)
                         Text(compiledMindUrl!!, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                     }
                 }
@@ -166,10 +207,10 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
 
             if (isCompiling) {
                 CircularProgressIndicator()
-                Text(if (targetId == null) "Creating .mind file..." else "Updating .mind file...", fontSize = 14.sp)
+                Text(if (targetId == null) "Creating target..." else "Updating target...", fontSize = 14.sp)
             } else {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (compiledMindUrl != null) {
+                    if (activeMindUrl != null) {
                         OutlinedButton(
                             onClick = { showAR = true },
                             modifier = Modifier.weight(1f).height(56.dp),
@@ -185,20 +226,21 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                             scope.launch {
                                 try {
                                     val response = if (targetId == null) {
-                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo, mindBytes = localMindBytes)
                                     } else {
-                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo, mindBytes = localMindBytes)
                                     }
                                     targetId = response.targetId
                                     compiledMindUrl = response.mindUrl
+                                    localMindBytes = null // Reset after successful upload
                                     snackbarHostState.showSnackbar(
                                         message = if (editId == null) "Target created successfully!" else "Target updated successfully!",
                                         duration = SnackbarDuration.Short
                                     )
                                 } catch (e: Throwable) {
-                                    println("ARCreator: Error during compilation: ${e.message}")
+                                    println("ARCreator: Error during upload: ${e.message}")
                                     snackbarHostState.showSnackbar(
-                                        message = "Error: ${e.message ?: "Failed to compile"}",
+                                        message = "Error: ${e.message ?: "Failed to upload"}",
                                         duration = SnackbarDuration.Long
                                     )
                                 } finally {
@@ -206,7 +248,7 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                                 }
                             }
                         },
-                        enabled = targetImageUrl != null && contentUrl != null && targetName.isNotBlank(),
+                        enabled = targetImageUrl != null && contentUrl != null && targetName.isNotBlank() && (localMindBytes != null || compiledMindUrl != null),
                         modifier = Modifier.weight(1.5f).height(56.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -225,6 +267,7 @@ fun CreatorStep(
     title: String,
     description: String,
     isDone: Boolean,
+    isLoading: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
@@ -232,7 +275,7 @@ fun CreatorStep(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .border(2.dp, if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray, RoundedCornerShape(16.dp))
-            .clickable { onClick() },
+            .clickable(enabled = !isLoading) { onClick() },
         color = if (isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
     ) {
         Row(
@@ -243,11 +286,15 @@ fun CreatorStep(
                 Text(text = title, fontWeight = FontWeight.Bold, color = if (isDone) MaterialTheme.colorScheme.primary else Color.Unspecified)
                 Text(text = description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            Icon(
-                imageVector = if (isDone) Icons.Default.Check else Icons.Default.Add,
-                contentDescription = null,
-                tint = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray
-            )
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    imageVector = if (isDone) Icons.Default.Check else Icons.Default.Add,
+                    contentDescription = null,
+                    tint = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray
+                )
+            }
         }
     }
 }

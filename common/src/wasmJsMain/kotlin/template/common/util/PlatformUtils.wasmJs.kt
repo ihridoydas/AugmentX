@@ -28,6 +28,7 @@
 package template.common.util
 
 import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.js.Promise
 import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.await
@@ -74,7 +75,30 @@ actual object PlatformUtils {
         val uint8Array = Uint8Array(buffer)
         return ByteArray(uint8Array.length) { i -> uint8Array[i] }
     }
+
+    actual suspend fun compileImage(url: String): ByteArray {
+        val cleanUrl = url.substringBefore("#")
+        val uint8Array = callCompileImage(cleanUrl).await<Uint8Array>()
+        return ByteArray(uint8Array.length) { i -> uint8Array[i] }
+    }
+
+    actual fun createUrlFromBytes(bytes: ByteArray): String {
+        val uint8Array = Uint8Array(bytes.size)
+        for (i in bytes.indices) {
+            setUint8Value(uint8Array, i, bytes[i])
+        }
+        return createBlobUrl(uint8Array)
+    }
 }
+
+@JsFun("(array, index, value) => array[index] = value")
+external fun setUint8Value(array: Uint8Array, index: Int, value: Byte)
+
+@JsFun("(uint8Array) => URL.createObjectURL(new Blob([uint8Array], {type: 'application/octet-stream'}))")
+external fun createBlobUrl(uint8Array: Uint8Array): String
+
+@JsFun("(url) => window.compileImage(url)")
+external fun callCompileImage(url: String): Promise<Uint8Array>
 
 @JsFun("() => { window.location.href = window.location.origin; }")
 external fun triggerHardReset()

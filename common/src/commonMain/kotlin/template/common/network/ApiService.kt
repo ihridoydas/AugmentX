@@ -65,9 +65,10 @@ class ApiService(private val client: HttpClient) {
         contentBlobUrl: String, 
         name: String? = null,
         isVideo: Boolean = false,
-        targetId: String? = null
+        targetId: String? = null,
+        mindBytes: ByteArray? = null
     ): CompileResponse {
-        println("ApiService: Starting compilation for $name (isVideo=$isVideo, targetId=$targetId)")
+        println("ApiService: Starting compilation for $name (isVideo=$isVideo, targetId=$targetId, hasMind=${mindBytes != null})")
         
         // 1. Determine extensions
         val imageExt = if (imageBlobUrl.contains(".png", ignoreCase = true)) "png" else "jpg"
@@ -85,6 +86,14 @@ class ApiService(private val client: HttpClient) {
                         append("name", name ?: "Unnamed")
                         append("isVideo", isVideo.toString())
                         if (targetId != null) append("targetId", targetId)
+                        
+                        if (mindBytes != null) {
+                            append("mind", mindBytes, Headers.build {
+                                append(HttpHeaders.ContentType, "application/octet-stream")
+                                append(HttpHeaders.ContentDisposition, "filename=\"target.mind\"")
+                            })
+                        }
+
                         append("image", imageBytes, Headers.build {
                             append(HttpHeaders.ContentType, "image/$imageExt")
                             append(HttpHeaders.ContentDisposition, "filename=\"target.$imageExt\"")
@@ -104,8 +113,8 @@ class ApiService(private val client: HttpClient) {
         }
     }
 
-    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean): CompileResponse {
-        return compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo, targetId)
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean, mindBytes: ByteArray? = null): CompileResponse {
+        return compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo, targetId, mindBytes)
     }
 
     suspend fun deleteMindAR(targetId: String) {

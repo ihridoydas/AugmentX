@@ -119,6 +119,7 @@
 
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 
@@ -212,10 +213,23 @@
         }
 
         const timestamp = Date.now();
-        const fullMindPath = mindFile + (mindFile.includes('?') ? '&' : '?') + "t=" + timestamp;
-        screenLog("Starting Session: " + fullMindPath);
+        // FIX: Don't append timestamp to blob URLs as it breaks them
+        const isBlob = mindFile.startsWith('blob:');
+        const fullMindPath = isBlob ? mindFile : (mindFile + (mindFile.includes('?') ? '&' : '?') + "t=" + timestamp);
 
-        try {
+        screenLog("Starting Session: " + (isBlob ? "Local Blob" : fullMindPath));
+
+        // Check file size before starting to avoid RangeError
+        fetch(fullMindPath).then(response => {
+            return response.arrayBuffer();
+        }).then(buffer => {
+            screenLog("Mind File Size: " + (buffer.byteLength / 1024).toFixed(1) + " KB");
+
+            if (buffer.byteLength < 100) {
+                screenLog("Error: Mind file too small (" + buffer.byteLength + " bytes). It is likely corrupt.");
+                throw new Error("Invalid mind file");
+            }
+
             document.body.classList.add("ar-active");
             document.getElementById("BackButton").style.display = "block";
 
@@ -225,7 +239,11 @@
             let finalHtml = htmlContent;
             finalHtml = finalHtml.replace('<a-scene', '<a-scene id="scene-' + timestamp + '"');
             finalHtml = finalHtml.replace(/mindar-image="[^"]+"/, 'mindar-image="imageTargetSrc: ' + fullMindPath + '; autoStart: true; uiScanning: yes; uiLoading: yes;"');
-            finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
+
+            // Only append timestamp to non-blob srcs
+            if (!isBlob) {
+                finalHtml = finalHtml.replace(/src="([^#][^"]+)"/g, 'src="$1?t=' + timestamp + '"');
+            }
 
             container.innerHTML = finalHtml;
 
@@ -321,6 +339,48 @@
             document.body.classList.toggle('show-ui');
         }
     });
+
+    // --- AR Target Compiler Logic ---
+    window.compileImage = async function(imageBlobUrl) {
+        screenLog("Compiling AR Target...");
+
+        // Ensure MINDAR is loaded
+        if (typeof MINDAR === 'undefined' || !MINDAR.IMAGE || !MINDAR.IMAGE.Compiler) {
+            screenLog("Error: MindAR Compiler library not loaded!");
+            throw new Error("MindAR Compiler library not loaded");
+        }
+
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = async () => {
+                try {
+                    screenLog("Image loaded, starting compiler...");
+                    const compiler = new MINDAR.IMAGE.Compiler();
+
+                    // MindAR compiler expects an array of images
+                    await compiler.compileImageTargets([img], (progress) => {
+                        if (Math.round(progress) % 25 === 0) {
+                            screenLog("Compiling: " + progress.toFixed(0) + "%");
+                        }
+                    });
+
+                    screenLog("Exporting .mind data...");
+                    const buffer = await compiler.exportData();
+                    screenLog("Success! .mind file generated (" + buffer.byteLength + " bytes)");
+                    resolve(new Uint8Array(buffer));
+                } catch (e) {
+                    screenLog("Compiler Error: " + e.message);
+                    reject(e);
+                }
+            };
+            img.onerror = () => {
+                screenLog("Error: Failed to load image " + imageBlobUrl);
+                reject(new Error("Failed to load image for compilation"));
+            }
+            img.src = imageBlobUrl;
+        });
+    };
 </script>
 <script src="common.js"></script>
 </body>

@@ -56,4 +56,12 @@ actual object PlatformUtils {
         // Simple fallback, real iOS impl would use NSData or similar
         return ByteArray(0)
     }
+
+    actual suspend fun compileImage(url: String): ByteArray {
+        return ByteArray(0) // Not implemented for iOS yet
+    }
+
+    actual fun createUrlFromBytes(bytes: ByteArray): String {
+        return "" // Not implemented for iOS yet
+    }
 }

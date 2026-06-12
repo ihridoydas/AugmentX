@@ -1,11 +1,23 @@
 [
     {
-        "id": "5ad6a7d0-26b3-45a5-a2f1-18ddcafd7d0f",
-        "name": "hhh",
-        "targetImageUrl": "http://localhost:8888/uploads/5ad6a7d0-26b3-45a5-a2f1-18ddcafd7d0f_target.jpg",
-        "contentUrl": "http://localhost:8888/uploads/5ad6a7d0-26b3-45a5-a2f1-18ddcafd7d0f_content.mp4",
-        "mindUrl": "http://localhost:8888/uploads/5ad6a7d0-26b3-45a5-a2f1-18ddcafd7d0f.mind",
+        "id": "06f4a116-4354-4751-9f18-12d6e967a200",
+        "name": "jjjjj",
+        "targetImageUrl": "http://localhost:8888/uploads/06f4a116-4354-4751-9f18-12d6e967a200_target.jpg",
+        "contentUrl": "http://localhost:8888/uploads/06f4a116-4354-4751-9f18-12d6e967a200_content.mp4",
+        "mindUrl": "http://localhost:8888/uploads/06f4a116-4354-4751-9f18-12d6e967a200.mind",
         "isVideo": true,
-        "createdAt": 1781171756848
+        "createdAt": 1781185643021,
+        "imageUploaded": true,
+        "contentUploaded": true,
+        "mindGenerated": true
+    },
+    {
+        "id": "a8282c68-3039-4c88-b65a-168ce85f7652",
+        "name": "ssss",
+        "targetImageUrl": "http://localhost:8888/uploads/a8282c68-3039-4c88-b65a-168ce85f7652_target.jpg",
+        "contentUrl": "http://localhost:8888/uploads/a8282c68-3039-4c88-b65a-168ce85f7652_content.glb",
+        "mindUrl": "http://localhost:8888/uploads/a8282c68-3039-4c88-b65a-168ce85f7652.mind",
+        "isVideo": false,
+        "createdAt": 1781186084818
     }
 ]

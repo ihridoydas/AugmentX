@@ -19,13 +19,45 @@
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 10;
+            z-index: 1; /* Lower z-index so models can be on top if needed */
+            pointer-events: none;
+        }
+        #ComposeTarget > * {
+            pointer-events: auto;
+        }
+
+        /* MindAR video element style */
+        body > video {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            z-index: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+        }
+
+        .mindar-ui-overlay {
+            z-index: 200 !important;
+        }
+
+        model-viewer {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
         }
     </style>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <!-- Use specific version for stability -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
     <div id="ComposeTarget"></div>
+    <script>
+        console.log("Web page loaded. model-viewer script included.");
+    </script>
     <script src="common.js"></script>
 </body>
 </html>

@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import template.common.ARMode
@@ -22,7 +21,7 @@ import template.common.components.AppBar
 
 @Composable
 fun ARImageDemo(onBack: () -> Unit) {
-    var showGuide by remember { mutableStateOf(true) }
+    var showGuide by remember { mutableStateOf(false) }
     
     // Define image-to-model mapping
     val imageTargetsMap = mapOf(
@@ -32,7 +31,7 @@ fun ARImageDemo(onBack: () -> Unit) {
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Black,
+        containerColor = Color.Transparent, // Essential for Web camera visibility
         topBar = {
             AppBar(
                 title = "AR Image Mapping",
@@ -46,7 +45,8 @@ fun ARImageDemo(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
                 isAR = true,
                 arMode = ARMode.Image,
-                imageTargets = imageTargetsMap
+                imageTargets = imageTargetsMap,
+                trackingImage = "images/cute.jpeg"
             )
 
             // Simplified Bottom Guide

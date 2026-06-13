@@ -20,7 +20,7 @@ import template.common.generated.resources.category_3d
 fun ModelViewerDemo(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
+        containerColor = Color.Transparent, // Essential for Web visibility
         topBar = {
             AppBar(
                 title = stringResource(Res.string.category_3d) + ": Model Viewer",

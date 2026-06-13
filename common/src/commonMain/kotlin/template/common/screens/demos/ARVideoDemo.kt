@@ -21,7 +21,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Black,
+        containerColor = Color.Transparent, // Transparent for Web camera visibility
         topBar = {
             AppBar(
                 title = "AR Image Video",

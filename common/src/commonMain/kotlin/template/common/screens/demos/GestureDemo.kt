@@ -14,6 +14,9 @@ import template.common.components.AppBar
 
 @Composable
 fun GestureEditingDemo(onBack: () -> Unit) {
+    var editMode by remember { mutableStateOf("Translate") }
+    val modes = listOf("Translate", "Rotate", "Scale")
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -31,17 +34,33 @@ fun GestureEditingDemo(onBack: () -> Unit) {
                 modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
             )
 
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Use gestures to move, rotate, and scale the model.",
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
+                    Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        modes.forEach { mode ->
+                            FilterChip(
+                                selected = editMode == mode,
+                                onClick = { editMode = mode },
+                                label = { Text(mode) },
+                                colors = FilterChipDefaults.filterChipColors(labelColor = Color.White)
+                            )
+                        }
+                    }
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "Current Mode: $editMode. Use standard gestures to modify the 3D model.",
+                        color = Color.White,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

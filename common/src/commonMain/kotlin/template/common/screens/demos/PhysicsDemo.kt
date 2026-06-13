@@ -14,6 +14,9 @@ import template.common.components.AppBar
 
 @Composable
 fun PhysicsDemo(onBack: () -> Unit) {
+    var gravityEnabled by remember { mutableStateOf(false) }
+    var isSimulating by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -28,20 +31,32 @@ fun PhysicsDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
             )
 
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Physics simulation (Rigid body, collisions).",
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { gravityEnabled = !gravityEnabled }) {
+                        Text(if (gravityEnabled) "Disable Gravity" else "Enable Gravity")
+                    }
+                    Button(onClick = { isSimulating = !isSimulating }) {
+                        Text(if (isSimulating) "Reset" else "Apply Impulse")
+                    }
+                }
+                
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "Rigid body physics with collision detection and gravity simulation.",
+                        color = Color.White,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

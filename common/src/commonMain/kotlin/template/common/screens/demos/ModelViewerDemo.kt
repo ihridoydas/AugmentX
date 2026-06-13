@@ -1,29 +1,31 @@
 package template.common.screens.demos
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.unit.dp
 import template.common.SceneView
 import template.common.components.AppBar
 
-import template.common.generated.resources.Res
-import template.common.generated.resources.category_3d
-
 @Composable
 fun ModelViewerDemo(onBack: () -> Unit) {
+    var modelUrl by remember { mutableStateOf("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb") }
+    var inputUrl by remember { mutableStateOf("") }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent, // Essential for Web visibility
+        containerColor = Color.Transparent,
         topBar = {
             AppBar(
-                title = stringResource(Res.string.category_3d) + ": Model Viewer",
+                title = "Model Viewer",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack,
             )
@@ -32,8 +34,36 @@ fun ModelViewerDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb"
+                modelUrl = modelUrl,
+                autoRotate = true
             )
+
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = inputUrl,
+                    onValueChange = { inputUrl = it },
+                    label = { Text("Load Custom GLB URL", color = Color.White) },
+                    modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                    trailingIcon = {
+                        IconButton(onClick = { if (inputUrl.isNotBlank()) modelUrl = inputUrl }) {
+                            Icon(Icons.Default.CloudDownload, null, tint = Color.White)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+                
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
+                    Text("Interactive viewer with orbit controls and auto-rotation.", color = Color.White, modifier = Modifier.padding(12.dp))
+                }
+            }
         }
     }
 }

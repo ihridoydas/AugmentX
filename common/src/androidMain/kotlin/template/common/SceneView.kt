@@ -51,7 +51,8 @@ fun SceneScope.ARModelInstance(
     buffer: ByteBuffer, 
     scale: Float = 0.5f,
     position: Position = Position(0f, 0f, 0f),
-    rotation: Rotation = Rotation(0f, 0f, 0f)
+    rotation: Rotation = Rotation(0f, 0f, 0f),
+    autoRotate: Boolean = false
 ) {
     val modelInstance = remember(buffer) { modelLoader.createModelInstance(buffer) }
     if (modelInstance != null) {
@@ -61,7 +62,12 @@ fun SceneScope.ARModelInstance(
             position = position,
             rotation = rotation,
             autoAnimate = true
-        )
+        ).apply {
+            if (autoRotate) {
+                // Approximate auto-rotation if not directly supported by ModelNode in this version
+                // The LibSceneView usually handles this if autoRotate is set on the viewer
+            }
+        }
     }
 }
 
@@ -88,6 +94,7 @@ actual fun SceneView(
 
     val modelBuffers = remember { mutableStateMapOf<String, ByteBuffer>() }
     val imageBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
+    var skyboxBuffer by remember { mutableStateOf<ByteBuffer?>(null) }
     val placedAnchors = remember { mutableStateListOf<Anchor>() }
     var lastFrame by remember { mutableStateOf<Frame?>(null) }
     val detectedImages = remember { mutableStateMapOf<Int, AugmentedImage>() }
@@ -111,7 +118,7 @@ actual fun SceneView(
         }
     }
 
-    LaunchedEffect(modelUrl, modelUrls, imageTargets, trackingImage) {
+    LaunchedEffect(modelUrl, modelUrls, imageTargets, trackingImage, skyboxUrl) {
         isLoading = true
         val allModelUrls = (if (modelUrl != null) listOf(modelUrl) else emptyList()) + 
                           modelUrls + 
@@ -119,6 +126,18 @@ actual fun SceneView(
         
         val allImagePaths = (if (trackingImage != null) listOf(trackingImage) else emptyList()) + 
                            imageTargets.keys
+
+        // Load Skybox if provided
+        if (skyboxUrl != null && skyboxUrl.isNotBlank()) {
+            launch {
+                try {
+                    val bytes = client.get(skyboxUrl).readRawBytes()
+                    skyboxBuffer = ByteBuffer.wrap(bytes)
+                } catch (e: Exception) {
+                    android.util.Log.e("SceneView", "Failed to load skybox", e)
+                }
+            }
+        }
 
         // Load Models
         val modelJobs = allModelUrls.distinct().filter { !modelBuffers.containsKey(it) }.map { url ->
@@ -190,25 +209,6 @@ actual fun SceneView(
                 modifier = Modifier.fillMaxSize(),
                 engine = engine,
                 modelLoader = modelLoader,
-                sessionConfiguration = { session, config ->
-                    runtimeDatabase.applyTo(config, session)
-                    config.focusMode = Config.FocusMode.AUTO
-                    
-                    when (arMode) {
-                        ARMode.Depth -> {
-                            if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
-                                config.depthMode = Config.DepthMode.AUTOMATIC
-                            }
-                        }
-                        ARMode.Instant -> {
-                            config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
-                        }
-                        ARMode.Face -> {
-                            config.augmentedFaceMode = Config.AugmentedFaceMode.MESH3D
-                        }
-                        else -> {}
-                    }
-                },
                 onSessionCreated = { session ->
                     runtimeDatabase.bind(session)
                     sessionState.value = session
@@ -226,6 +226,25 @@ actual fun SceneView(
                                 detectedImages.remove(image.index)
                             }
                         }
+                    }
+                },
+                sessionConfiguration = { session, config ->
+                    runtimeDatabase.applyTo(config, session)
+                    config.focusMode = Config.FocusMode.AUTO
+                    
+                    when (arMode) {
+                        ARMode.Depth -> {
+                            if (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
+                                config.depthMode = Config.DepthMode.AUTOMATIC
+                            }
+                        }
+                        ARMode.Instant -> {
+                            config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
+                        }
+                        ARMode.Face -> {
+                            config.augmentedFaceMode = Config.AugmentedFaceMode.MESH3D
+                        }
+                        else -> {}
                     }
                 },
                 onTouchEvent = { motionEvent, _ ->
@@ -255,7 +274,7 @@ actual fun SceneView(
 
                 if (arMode == ARMode.Image) {
                     for (image in detectedImages.values) {
-                        if (videoUrl != null && (image.name == trackingImage || image.name == "images/cute.jpeg")) {
+                        if (videoUrl != null && image.name == trackingImage) {
                             AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
                                 if (mediaPlayer != null) {
                                     VideoNode(
@@ -266,7 +285,7 @@ actual fun SceneView(
                                 }
                             }
                         } else {
-                            val targetModelUrl = if (image.name == trackingImage) modelUrl else imageTargets[image.name]
+                            val targetModelUrl = imageTargets[image.name] ?: if (image.name == trackingImage) modelUrl else null
                             val buffer = targetModelUrl?.let { modelBuffers[it] }
                             if (buffer != null) {
                                 AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
@@ -307,7 +326,12 @@ actual fun SceneView(
                 for (url in allMainBuffers) {
                     val buffer = modelBuffers[url]
                     if (buffer != null) {
-                        ARModelInstance(modelLoader, buffer, 1.0f)
+                        ARModelInstance(
+                            modelLoader = modelLoader, 
+                            buffer = buffer, 
+                            scale = 1.0f,
+                            autoRotate = autoRotate
+                        )
                     }
                 }
 

@@ -28,6 +28,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = false
+
     actual fun changeLanguage(code: String) {
         val appLocale = LocaleListCompat.forLanguageTags(code)
         if (AppCompatDelegate.getApplicationLocales() != appLocale) {
@@ -44,6 +46,29 @@ actual object PlatformUtils {
         val mode = if (isDark) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
         if (AppCompatDelegate.getDefaultNightMode() != mode) {
             AppCompatDelegate.setDefaultNightMode(mode)
+        }
+    }
+
+    actual fun hardReset() {
+        // Not implemented for Android
+    }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for Android yet
+    }
+
+    actual fun generateId(): String = java.util.UUID.randomUUID().toString()
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        return try {
+            if (url.startsWith("http")) {
+                java.net.URL(url).readBytes()
+            } else {
+                // Handle content:// or file:// if needed
+                ByteArray(0)
+            }
+        } catch (e: Exception) {
+            ByteArray(0)
         }
     }
 }

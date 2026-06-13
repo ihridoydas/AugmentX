@@ -15,44 +15,65 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.database.ARLocalDataSource
+import template.common.network.ApiService
+import template.common.util.PlatformUtils
 
 @Composable
 fun ARImageDemo(onBack: () -> Unit) {
+    val apiService: ApiService = koinInject()
+    val localDataSource: ARLocalDataSource = koinInject()
+    
+    val managedItems by apiService.managedItems.collectAsState()
+    val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
+    
+    // Find the first available item that is NOT a video
+    val sampleItem = remember(managedItems, localItems) {
+        (managedItems + localItems).firstOrNull { !it.isVideo }
+    }
+
     var showGuide by remember { mutableStateOf(false) }
     
-    // Define image-to-model mapping
-    val imageTargetsMap = mapOf(
-        "images/earth.jpg" to "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
-        "images/cute.jpeg" to "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-    )
-    
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent, // Essential for Web camera visibility
-        topBar = {
-            AppBar(
-                title = "AR Image Mapping",
-                navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNav = onBack,
-            )
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+        if (sampleItem != null) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 isAR = true,
                 arMode = ARMode.Image,
-                imageTargets = imageTargetsMap,
-                trackingImage = "images/cute.jpeg"
+                trackingImage = if (PlatformUtils.isWeb) sampleItem.mindUrl else sampleItem.targetImageUrl,
+                modelUrl = sampleItem.contentUrl
             )
+        } else {
+            // Fallback UI or Loading
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("No 3D Model AR target found in database.", color = Color.White)
+                }
+            }
+        }
+
+        // Overlay UI
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f))) {
+                AppBar(
+                    title = "AR Image Mapping",
+                    navIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                    onNav = onBack,
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
 
             // Simplified Bottom Guide
             Surface(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.CenterHorizontally)
                     .padding(24.dp)
                     .clickable { showGuide = !showGuide },
                 color = Color.Black.copy(alpha = 0.7f),
@@ -77,7 +98,7 @@ fun ARImageDemo(onBack: () -> Unit) {
                                 Text("Chibi", color = Color.White, fontSize = 10.sp)
                             }
                             Text(
-                                text = "Point at cute.jpeg to see the Astronaut",
+                                text = "Point at the target image to see the ${sampleItem?.name ?: "model"} ${if (PlatformUtils.isWeb) "(Web)" else "(Native)"}",
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyMedium
                             )

@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     id(libs.plugins.dokka.get().pluginId)
 }
 
@@ -37,12 +39,12 @@ kotlin {
                 api(projects.theme)
                 api(projects.navigation)
                 api(projects.storage)
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
-                implementation(compose.components.uiToolingPreview)
+                implementation(libs.compose.multiplatform.runtime)
+                implementation(libs.compose.multiplatform.foundation)
+                implementation(libs.compose.multiplatform.material3)
+                implementation(libs.compose.multiplatform.ui)
+                implementation(libs.compose.multiplatform.components.resources)
+                implementation(libs.compose.multiplatform.ui.tooling.preview)
                 implementation(libs.compose.material.icons.extended)
                 implementation(libs.kotlin.coroutines)
                 
@@ -77,6 +79,8 @@ kotlin {
                 implementation(libs.ktor.client.android)
                 implementation(libs.sceneview)
                 implementation(libs.arsceneview)
+                
+                implementation(libs.androidx.room.runtime)
             }
         }
         val androidUnitTest by getting {
@@ -97,19 +101,12 @@ kotlin {
         val iosArm64Test by getting
         val iosSimulatorArm64Test by getting
         val iosMain by creating {
-            dependsOn(commonMain)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
             dependencies {
                 implementation(libs.ktor.client.darwin)
                 implementation(libs.webviewMultiplatform)
             }
         }
-        val iosTest by creating {
-            dependsOn(commonTest)
-            iosArm64Test.dependsOn(this)
-            iosSimulatorArm64Test.dependsOn(this)
-        }
+        val iosTest by creating
         val wasmJsMain by getting {
             dependencies {
                 implementation(libs.ktor.client.js)
@@ -120,6 +117,7 @@ kotlin {
 
 dependencies {
     "debugImplementation"(libs.compose.ui.test.manifest)
+    add("kspAndroid", libs.androidx.room.compiler)
 }
 
 compose.desktop {

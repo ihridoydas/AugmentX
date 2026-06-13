@@ -251,11 +251,11 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                                         localDataSource.insertItem(newItem)
                                         targetId = newItem.id
                                         
-                                        // Optional: Also try to save to backend if server is up, or just keep it local
+                                        // Save to backend registry_android.json
                                         try {
-                                            // apiService.compileMindAR(...)
+                                            apiService.saveAndroidTarget(newItem)
                                         } catch (e: Exception) {
-                                            // Backend failed, but we saved locally!
+                                            println("ARCreator: Backend save failed, but saved locally: ${e.message}")
                                         }
                                     }
                                     snackbarHostState.showSnackbar(

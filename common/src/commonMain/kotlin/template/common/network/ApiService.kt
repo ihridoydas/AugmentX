@@ -40,6 +40,9 @@ class ApiService(private val client: HttpClient) {
     private val _managedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
     val managedItems: StateFlow<List<ManagedARItem>> = _managedItems.asStateFlow()
 
+    private val _androidManagedItems = MutableStateFlow<List<ManagedARItem>>(emptyList())
+    val androidManagedItems: StateFlow<List<ManagedARItem>> = _androidManagedItems.asStateFlow()
+
     init {
         // Automatically fetch items when the service is created
         refreshTargets()
@@ -50,11 +53,26 @@ class ApiService(private val client: HttpClient) {
             try {
                 println("ApiService: Refreshing targets from backend...")
                 val items: List<ManagedARItem> = client.get("$baseUrl/targets").body()
-                println("ApiService: Received ${items.size} items from server.")
                 _managedItems.value = items
+                
+                val androidItems: List<ManagedARItem> = client.get("$baseUrl/targets/android").body()
+                _androidManagedItems.value = androidItems
             } catch (e: Exception) {
                 println("ApiService: Failed to fetch targets: ${e.message}")
             }
+        }
+    }
+
+    suspend fun saveAndroidTarget(item: ManagedARItem) {
+        try {
+            client.post("$baseUrl/save_android") {
+                contentType(ContentType.Application.Json)
+                setBody(item)
+            }
+            refreshTargets()
+        } catch (e: Exception) {
+            println("ApiService: Failed to save android target: ${e.message}")
+            throw e
         }
     }
 

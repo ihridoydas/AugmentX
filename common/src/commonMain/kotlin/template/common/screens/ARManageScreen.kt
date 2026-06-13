@@ -47,11 +47,12 @@ fun ARManageScreen(
     val localDataSource: ARLocalDataSource = koinInject()
     
     val managedItems by apiService.managedItems.collectAsState()
+    val androidManagedItems by apiService.androidManagedItems.collectAsState()
     val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
     
     // Distinguish between local and remote for the UI
-    val combinedItems = remember(managedItems, localItems) { 
-        (managedItems.map { it to false } + localItems.map { it to true })
+    val combinedItems = remember(managedItems, androidManagedItems, localItems) { 
+        (managedItems.map { it to false } + androidManagedItems.map { it to false } + localItems.map { it to true })
             .distinctBy { it.first.id }
             .sortedByDescending { it.first.createdAt }
     }

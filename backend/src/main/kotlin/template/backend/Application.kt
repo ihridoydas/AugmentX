@@ -61,12 +61,13 @@ fun main() {
             if (!uploadDir.exists()) uploadDir.mkdirs()
 
             val registryFile = File(uploadDir, "registry.json")
+            val androidRegistryFile = File(uploadDir, "registry_android.json")
             val jsonSerializer = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
-            fun loadRegistry(): MutableList<ManagedARItem> {
-                return if (registryFile.exists()) {
+            fun loadRegistry(file: File = registryFile): MutableList<ManagedARItem> {
+                return if (file.exists()) {
                     try {
-                        jsonSerializer.decodeFromString<List<ManagedARItem>>(registryFile.readText()).toMutableList()
+                        jsonSerializer.decodeFromString<List<ManagedARItem>>(file.readText()).toMutableList()
                     } catch (e: Exception) {
                         mutableListOf()
                     }
@@ -75,11 +76,11 @@ fun main() {
                 }
             }
 
-            fun saveRegistry(items: List<ManagedARItem>) {
+            fun saveRegistry(items: List<ManagedARItem>, file: File = registryFile) {
                 try {
-                    registryFile.writeText(jsonSerializer.encodeToString(items))
+                    file.writeText(jsonSerializer.encodeToString(items))
                 } catch (e: Exception) {
-                    println("Backend: Error saving registry: ${e.message}")
+                    println("Backend: Error saving registry ${file.name}: ${e.message}")
                 }
             }
 
@@ -92,6 +93,24 @@ fun main() {
             get("/targets") {
                 val items = loadRegistry()
                 call.respond(items)
+            }
+
+            get("/targets/android") {
+                val items = loadRegistry(androidRegistryFile)
+                call.respond(items)
+            }
+
+            post("/save_android") {
+                try {
+                    val item = call.receive<ManagedARItem>()
+                    val items = loadRegistry(androidRegistryFile)
+                    items.removeAll { it.id == item.id }
+                    items.add(item)
+                    saveRegistry(items, androidRegistryFile)
+                    call.respond(HttpStatusCode.OK, "Saved to registry_android.json")
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, e.message ?: "Error saving Android target")
+                }
             }
 
             post("/compile") {

@@ -26,66 +26,117 @@ import org.koin.compose.koinInject
 import template.common.components.AppBar
 import template.common.network.ApiService
 import template.common.network.ManagedARItem
+import template.common.database.ARLocalDataSource
 import template.common.util.PlatformUtils
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.vector.ImageVector
 
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+
 @Composable
 fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: () -> Unit) {
     val apiService: ApiService = koinInject()
+    val localDataSource: ARLocalDataSource = koinInject()
+    
     val managedItems by apiService.managedItems.collectAsState()
+    val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
+    
+    // Distinguish between local and remote for the UI
+    val combinedItems = remember(managedItems, localItems) { 
+        (managedItems.map { it to false } + localItems.map { it to true })
+            .distinctBy { it.first.id }
+            .sortedByDescending { it.first.createdAt }
+    }
+    
     val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             AppBar(
-                title = "Manage AR Targets",
+                title = "AR Management",
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNav = onBack
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            LargeFloatingActionButton(
                 onClick = onAdd,
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape
             ) {
-                Icon(Icons.Default.Add, "Add New")
+                Icon(Icons.Default.Add, "Add New", modifier = Modifier.size(32.dp))
             }
         }
     ) { padding ->
-        if (managedItems.isEmpty()) {
+        if (combinedItems.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.CloudOff, 
-                        contentDescription = null, 
-                        modifier = Modifier.size(80.dp), 
-                        tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                    )
-                    Text(
-                        "No AR targets found", 
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Button(onClick = onAdd) {
-                        Text("Create Your First Target")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally, 
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(120.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        shape = CircleShape
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.AutoFixHigh, 
+                                contentDescription = null, 
+                                modifier = Modifier.size(60.dp), 
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Your AR Library is Empty", 
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Create your first augmented reality experience by uploading a target image and content.", 
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                    
+                    Button(
+                        onClick = onAdd,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.height(56.dp).fillMaxWidth(0.7f)
+                    ) {
+                        Icon(Icons.Default.Add, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Create AR Target")
                     }
                 }
             }
         } else {
-            LazyColumn(
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 340.dp),
                 modifier = Modifier.padding(padding).fillMaxSize(),
                 contentPadding = PaddingValues(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(managedItems, key = { it.id }) { item ->
+                items(combinedItems, key = { it.first.id }) { (item, isLocal) ->
                     ManagedItemCard(
                         item = item,
+                        isLocal = isLocal,
                         onEdit = { onEdit(item) },
                         onDelete = {
                             scope.launch {
-                                apiService.deleteMindAR(item.id)
+                                if (isLocal) localDataSource.deleteItem(item.id)
+                                else apiService.deleteMindAR(item.id)
                             }
                         }
                     )
@@ -96,7 +147,7 @@ fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: (
 }
 
 @Composable
-fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Unit) {
+fun ManagedItemCard(item: ManagedARItem, isLocal: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
     var imageBitmap by remember(item.targetImageUrl) { mutableStateOf<ImageBitmap?>(null) }
     
     LaunchedEffect(item.targetImageUrl) {
@@ -112,22 +163,17 @@ fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Uni
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Thumbnail Image
+        Column {
+            // Header Info
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (imageBitmap != null) {
                     Image(
@@ -137,92 +183,123 @@ fun ManagedItemCard(item: ManagedARItem, onEdit: () -> Unit, onDelete: () -> Uni
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Icon(
-                        imageVector = if (item.isVideo) Icons.Default.Videocam else Icons.Default.ViewInAr,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-            
-            Spacer(Modifier.width(16.dp))
-            
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = item.name, 
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = if (item.isVideo) "VIDEO" else "MODEL",
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.primary
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (item.isVideo) Icons.Default.Videocam else Icons.Default.ViewInAr,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            modifier = Modifier.size(64.dp)
                         )
                     }
                 }
                 
-                Spacer(Modifier.height(6.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StatusBadge(label = "Target", isSuccess = item.imageUploaded)
-                    StatusBadge(label = if (item.isVideo) "Video" else "3D", isSuccess = item.contentUploaded)
-                    StatusBadge(label = "AR Data", isSuccess = item.mindGenerated)
+                // Overlay Badges
+                Row(
+                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isLocal) Icons.Default.Storage else Icons.Default.Cloud,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = if (isLocal) "Local" else "Cloud",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (item.isVideo) "VIDEO AR" else "3D MODEL AR",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
-                
-                Spacer(Modifier.height(4.dp))
-                
+            }
+            
+            Column(Modifier.padding(16.dp)) {
                 Text(
-                    text = "ID: ${item.id.take(8)}...", 
-                    style = MaterialTheme.typography.labelSmall, 
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = item.name, 
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 1
                 )
                 
-                val fileName = item.contentUrl.substringAfterLast("/").substringAfter("_")
-                if (fileName.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (item.isVideo) Icons.Default.Movie else Icons.Default.Layers,
-                            contentDescription = null,
-                            modifier = Modifier.size(10.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = fileName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 1
-                        )
+                Spacer(Modifier.height(8.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically, 
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    StatusBadge(label = "Tracking", isSuccess = item.imageUploaded)
+                    StatusBadge(label = "Content", isSuccess = item.contentUploaded)
+                    if (!PlatformUtils.isWeb || !isLocal) {
+                         StatusBadge(label = "Compiled", isSuccess = item.mindGenerated)
                     }
                 }
-            }
-            
-            Row {
-                IconButton(
-                    onClick = onEdit,
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Icon(Icons.Default.Edit, "Edit")
-                }
                 
-                IconButton(
-                    onClick = onDelete,
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(16.dp))
+                
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Delete, "Delete")
+                    Text(
+                        text = "ID: ${item.id.take(8)}", 
+                        style = MaterialTheme.typography.labelMedium, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    
+                    Row {
+                        FilledIconButton(
+                            onClick = onEdit,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, "Edit", modifier = Modifier.size(18.dp))
+                        }
+                        
+                        Spacer(Modifier.width(8.dp))
+                        
+                        FilledIconButton(
+                            onClick = onDelete,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, "Delete", modifier = Modifier.size(18.dp))
+                        }
+                    }
                 }
             }
         }

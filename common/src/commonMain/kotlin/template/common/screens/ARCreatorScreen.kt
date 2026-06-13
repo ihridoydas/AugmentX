@@ -28,17 +28,24 @@ import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.database.ARLocalDataSource
 import template.common.network.ApiService
+import template.common.network.ManagedARItem
 import template.common.util.PlatformUtils
 
 @Composable
 fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     val apiService: ApiService = koinInject()
+    val localDataSource: ARLocalDataSource = koinInject()
     val managedItems by apiService.managedItems.collectAsState()
+    val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
+    
+    val combinedItems = remember(managedItems, localItems) { managedItems + localItems }
+    
     val snackbarHostState = remember { SnackbarHostState() }
     
-    val existingItem = remember(editId, managedItems) { 
-        managedItems.find { it.id == editId } 
+    val existingItem = remember(editId, combinedItems) { 
+        combinedItems.find { it.id == editId }
     }
 
     var targetName by remember { mutableStateOf(existingItem?.name ?: "") }
@@ -196,10 +203,15 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
 
             if (isCompiling) {
                 CircularProgressIndicator()
-                Text(if (targetId == null) "Creating .mind file..." else "Updating .mind file...", fontSize = 14.sp)
+                val loadingText = if (PlatformUtils.isWeb) {
+                    if (targetId == null) "Creating .mind file..." else "Updating .mind file..."
+                } else {
+                    if (targetId == null) "Saving to database..." else "Updating database..."
+                }
+                Text(loadingText, fontSize = 14.sp)
             } else {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (compiledMindUrl != null) {
+                    if (compiledMindUrl != null || (!PlatformUtils.isWeb && targetImageUrl != null && contentUrl != null)) {
                         OutlinedButton(
                             onClick = { showAR = true },
                             modifier = Modifier.weight(1f).height(56.dp),
@@ -214,21 +226,46 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                             isCompiling = true
                             scope.launch {
                                 try {
-                                    val response = if (targetId == null) {
-                                        apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                    if (PlatformUtils.isWeb) {
+                                        val response = if (targetId == null) {
+                                            apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                        } else {
+                                            apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                        }
+                                        targetId = response.targetId
+                                        compiledMindUrl = response.mindUrl
                                     } else {
-                                        apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                        // Android Local Room Save
+                                        val newItem = ManagedARItem(
+                                            id = targetId ?: PlatformUtils.generateId(),
+                                            name = targetName,
+                                            targetImageUrl = targetImageUrl!!,
+                                            contentUrl = contentUrl!!,
+                                            mindUrl = compiledMindUrl ?: "", 
+                                            isVideo = isVideo,
+                                            createdAt = 0L,
+                                            imageUploaded = true,
+                                            contentUploaded = true,
+                                            mindGenerated = false // Mind files not needed for Native Android
+                                        )
+                                        localDataSource.insertItem(newItem)
+                                        targetId = newItem.id
+                                        
+                                        // Optional: Also try to save to backend if server is up, or just keep it local
+                                        try {
+                                            // apiService.compileMindAR(...)
+                                        } catch (e: Exception) {
+                                            // Backend failed, but we saved locally!
+                                        }
                                     }
-                                    targetId = response.targetId
-                                    compiledMindUrl = response.mindUrl
                                     snackbarHostState.showSnackbar(
                                         message = if (editId == null) "Target created successfully!" else "Target updated successfully!",
                                         duration = SnackbarDuration.Short
                                     )
                                 } catch (e: Throwable) {
-                                    println("ARCreator: Error during compilation: ${e.message}")
+                                    println("ARCreator: Error during save: ${e.message}")
                                     snackbarHostState.showSnackbar(
-                                        message = "Error: ${e.message ?: "Failed to compile"}",
+                                        message = "Error: ${e.message ?: "Failed to process request"}",
                                         duration = SnackbarDuration.Long
                                     )
                                 } finally {
@@ -240,9 +277,19 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                         modifier = Modifier.weight(1.5f).height(56.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(if (targetId == null) Icons.Default.CloudUpload else Icons.Default.Refresh, null)
+                        val icon = if (targetId == null) {
+                            if (PlatformUtils.isWeb) Icons.Default.CloudUpload else Icons.Default.Check
+                        } else {
+                            Icons.Default.Refresh
+                        }
+                        Icon(icon, null)
                         Spacer(Modifier.width(12.dp))
-                        Text(if (targetId == null) "Create & Compile" else "Update & Compile")
+                        val buttonText = if (PlatformUtils.isWeb) {
+                            if (targetId == null) "Create & Compile" else "Update & Compile"
+                        } else {
+                            if (targetId == null) "Save to Database" else "Update Target"
+                        }
+                        Text(buttonText)
                     }
                 }
             }

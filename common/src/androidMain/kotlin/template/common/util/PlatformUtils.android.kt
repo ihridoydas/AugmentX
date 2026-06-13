@@ -57,6 +57,8 @@ actual object PlatformUtils {
         // Not implemented for Android yet
     }
 
+    actual fun generateId(): String = java.util.UUID.randomUUID().toString()
+
     actual suspend fun readBytes(url: String): ByteArray {
         return try {
             if (url.startsWith("http")) {

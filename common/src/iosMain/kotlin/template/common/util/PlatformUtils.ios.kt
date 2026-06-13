@@ -54,6 +54,8 @@ actual object PlatformUtils {
         // Not implemented for iOS yet
     }
 
+    actual fun generateId(): String = (0..1000000).random().toString()
+
     actual suspend fun readBytes(url: String): ByteArray {
         // Simple fallback, real iOS impl would use NSData or similar
         return ByteArray(0)

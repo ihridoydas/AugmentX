@@ -255,7 +255,7 @@ actual fun SceneView(
 
                 if (arMode == ARMode.Image) {
                     for (image in detectedImages.values) {
-                        if (videoUrl != null && (image.name == trackingImage || image.name == "images/cute.jpeg")) {
+                        if (videoUrl != null && image.name == trackingImage) {
                             AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
                                 if (mediaPlayer != null) {
                                     VideoNode(
@@ -266,7 +266,7 @@ actual fun SceneView(
                                 }
                             }
                         } else {
-                            val targetModelUrl = if (image.name == trackingImage) modelUrl else imageTargets[image.name]
+                            val targetModelUrl = imageTargets[image.name] ?: if (image.name == trackingImage) modelUrl else null
                             val buffer = targetModelUrl?.let { modelBuffers[it] }
                             if (buffer != null) {
                                 AugmentedImageNode(augmentedImage = image, applyImageScale = true) {

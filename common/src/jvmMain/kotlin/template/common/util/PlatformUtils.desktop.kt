@@ -27,6 +27,8 @@
 package template.common.util
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = false
+
     actual fun changeLanguage(code: String) {
         println("PlatformUtils Desktop: changeLanguage to $code")
         val locale = if (code.isEmpty()) java.util.Locale.getDefault() else java.util.Locale.forLanguageTag(code)
@@ -35,5 +37,23 @@ actual object PlatformUtils {
 
     actual fun changeTheme(isDark: Boolean) {
         println("PlatformUtils Desktop: changeTheme to isDark=$isDark")
+    }
+
+    actual fun hardReset() {
+        // Desktop doesn't need a hard browser reset
+    }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for Desktop yet
+    }
+
+    actual fun generateId(): String = java.util.UUID.randomUUID().toString()
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        return try {
+            java.net.URL(url).readBytes()
+        } catch (e: Exception) {
+            ByteArray(0)
+        }
     }
 }

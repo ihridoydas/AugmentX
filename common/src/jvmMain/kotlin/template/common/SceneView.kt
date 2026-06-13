@@ -25,6 +25,12 @@ actual fun SceneView(
     imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
+    exposure: Float,
+    fogDensity: Float,
+    animationSpeed: Float,
+    textContent: String?,
+    scale: Float,
+    billboard: Boolean,
     onModelLoaded: () -> Unit
 ) {
     val allUrls = remember(modelUrl, modelUrls, imageTargets) {

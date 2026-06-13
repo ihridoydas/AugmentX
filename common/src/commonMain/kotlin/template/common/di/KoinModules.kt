@@ -58,5 +58,5 @@ val viewModelModule = module {
 }
 
 val appModule = module {
-    includes(networkModule, storageModule, viewModelModule)
+    includes(networkModule, storageModule, viewModelModule, platformModule)
 }

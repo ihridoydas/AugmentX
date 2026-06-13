@@ -7,7 +7,7 @@ kotlinAndroid = "2.3.21"
 kotlinJvm = "2.3.21"
 kotlinSerialization = "1.11.0"
 kotlinPluginSerialization = "2.3.21"
-composeMultiplatform = "1.11.0"
+composeMultiplatform = "1.11.1"
 protobufGradlePlugin = "0.10.0"
 timber = "5.0.1"
 spotless = "8.5.1"
@@ -61,7 +61,8 @@ composeMaterialIcons = "1.7.3"
 xr-compose = "1.0.0-alpha14"
 xr-scenecore = "1.0.0-alpha15"
 xr-material = "1.0.0-alpha17"
-sceneview = "4.17.0"
+sceneview = "4.18.0"
+skiko = "0.148.1"
 core = "1.17.1"
 compose-webview = "2.0.3"
 kcef = "2024.04.20.4"
@@ -87,6 +88,11 @@ ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-conte
 ktor-serialization = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktor" }
 ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
+ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref = "ktor" }
+ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-server-cors = { group = "io.ktor", name = "ktor-server-cors", version.ref = "ktor" }
+ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
 protobuf-kotlinLite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "protobuf" }
 protobuf-javaLite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 protobuf-protoc = { module = "com.google.protobuf:protoc", version.ref = "protobuf" }
@@ -123,6 +129,15 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 compose-ui-util = { group = "androidx.compose.ui", name = "ui-util" }
+
+compose-multiplatform-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
+compose-multiplatform-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
+compose-multiplatform-material3 = { module = "org.jetbrains.compose.material3:material3", version = "1.11.0-alpha07" }
+compose-multiplatform-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
+compose-multiplatform-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
+compose-multiplatform-ui-tooling-preview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "composeMultiplatform" }
+compose-multiplatform-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+
 androidx-compose-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version.ref = "composeConstraintLayout" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "ktxCore" }
 android-material = { module = "com.google.android.material:material", version.ref = "material" }
@@ -164,6 +179,8 @@ sceneview = { module = "io.github.sceneview:sceneview", version.ref = "sceneview
 arsceneview = { module = "io.github.sceneview:arsceneview", version.ref = "sceneview" }
 sceneview-core = { module = "io.github.sceneview:sceneview-core", version.ref = "sceneview" }
 sceneview-web = { module = "io.github.sceneview:sceneview-web", version.ref = "sceneview" }
+skiko = { module = "org.jetbrains.skiko:skiko", version.ref = "skiko" }
+skiko-runtime = { module = "org.jetbrains.skiko:skiko-js-wasm-runtime", version.ref = "skiko" }
 kcef = { module = "dev.datlag:kcef", version.ref = "kcef" }
 core = { group = "com.google.ar.sceneform", name = "core", version.ref = "core" }
 webviewMultiplatform = { module = "io.github.kevinnzou:compose-webview-multiplatform", version.ref = "compose-webview" }

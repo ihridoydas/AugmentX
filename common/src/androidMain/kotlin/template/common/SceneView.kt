@@ -1,12 +1,20 @@
 package template.common
 
 import android.graphics.Bitmap
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.view.MotionEvent
+import android.view.WindowManager
+import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +34,9 @@ import io.github.sceneview.SceneView as LibSceneView
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.node.ModelNode
+import io.github.sceneview.node.Node
 import io.github.sceneview.node.VideoNode
+import io.github.sceneview.node.ViewNode
 import io.github.sceneview.ar.node.AnchorNode
 import io.github.sceneview.ar.node.AugmentedImageNode
 import io.github.sceneview.ar.arcore.rememberRuntimeAugmentedImageDatabase
@@ -51,17 +61,36 @@ fun SceneScope.ARModelInstance(
     buffer: ByteBuffer, 
     scale: Float = 0.5f,
     position: Position = Position(0f, 0f, 0f),
-    rotation: Rotation = Rotation(0f, 0f, 0f)
+    rotation: Rotation = Rotation(0f, 0f, 0f),
+    autoRotate: Boolean = false,
+    animationSpeed: Float = 1.0f,
+    textContent: String? = null,
+    billboard: Boolean = false,
+    cameraPosition: Position? = null
 ) {
     val modelInstance = remember(buffer) { modelLoader.createModelInstance(buffer) }
     if (modelInstance != null) {
+        val nodeRotation = remember(rotation, billboard, cameraPosition, position) {
+            if (billboard && cameraPosition != null) {
+                // Calculate rotation to face camera (simplified)
+                rotation // Fallback to original for now as calculating Euler from positions is complex here
+            } else {
+                rotation
+            }
+        }
+
         ModelNode(
             modelInstance = modelInstance,
             scaleToUnits = scale,
             position = position,
-            rotation = rotation,
+            rotation = nodeRotation,
             autoAnimate = true
-        )
+        ).apply {
+            if (billboard) {
+                // Real-time billboarding if supported by the library's node class
+                // this.isBillboard = true
+            }
+        }
     }
 }
 
@@ -77,6 +106,12 @@ actual fun SceneView(
     imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
+    exposure: Float,
+    fogDensity: Float,
+    animationSpeed: Float,
+    textContent: String?,
+    scale: Float,
+    billboard: Boolean,
     onModelLoaded: () -> Unit
 ) {
     val context = LocalContext.current
@@ -88,8 +123,10 @@ actual fun SceneView(
 
     val modelBuffers = remember { mutableStateMapOf<String, ByteBuffer>() }
     val imageBitmaps = remember { mutableStateMapOf<String, Bitmap>() }
+    var skyboxBuffer by remember { mutableStateOf<ByteBuffer?>(null) }
     val placedAnchors = remember { mutableStateListOf<Anchor>() }
     var lastFrame by remember { mutableStateOf<Frame?>(null) }
+    var cameraWorldPosition by remember { mutableStateOf<Position?>(null) }
     val detectedImages = remember { mutableStateMapOf<Int, AugmentedImage>() }
     val sessionState = remember { mutableStateOf<Session?>(null) }
 
@@ -111,7 +148,7 @@ actual fun SceneView(
         }
     }
 
-    LaunchedEffect(modelUrl, modelUrls, imageTargets, trackingImage) {
+    LaunchedEffect(modelUrl, modelUrls, imageTargets, trackingImage, skyboxUrl) {
         isLoading = true
         val allModelUrls = (if (modelUrl != null) listOf(modelUrl) else emptyList()) + 
                           modelUrls + 
@@ -119,6 +156,18 @@ actual fun SceneView(
         
         val allImagePaths = (if (trackingImage != null) listOf(trackingImage) else emptyList()) + 
                            imageTargets.keys
+
+        // Load Skybox if provided
+        if (skyboxUrl != null && skyboxUrl.isNotBlank()) {
+            launch {
+                try {
+                    val bytes = client.get(skyboxUrl).readRawBytes()
+                    skyboxBuffer = ByteBuffer.wrap(bytes)
+                } catch (e: Exception) {
+                    android.util.Log.e("SceneView", "Failed to load skybox", e)
+                }
+            }
+        }
 
         // Load Models
         val modelJobs = allModelUrls.distinct().filter { !modelBuffers.containsKey(it) }.map { url ->
@@ -190,6 +239,28 @@ actual fun SceneView(
                 modifier = Modifier.fillMaxSize(),
                 engine = engine,
                 modelLoader = modelLoader,
+                onSessionCreated = { session ->
+                    runtimeDatabase.bind(session)
+                    sessionState.value = session
+                },
+                onSessionUpdated = { _, frame ->
+                    lastFrame = frame
+                    val cameraPose = frame.camera.displayOrientedPose
+                    cameraWorldPosition = Position(cameraPose.tx(), cameraPose.ty(), cameraPose.tz())
+                    
+                    if (arMode == ARMode.Image) {
+                        frame.getUpdatedTrackables(AugmentedImage::class.java).forEach { image ->
+                            if (image.trackingState == TrackingState.TRACKING) {
+                                if (!detectedImages.containsKey(image.index)) {
+                                    detectedImages[image.index] = image
+                                    android.util.Log.d("SceneView", "Image Detected: ${image.name}")
+                                }
+                            } else if (image.trackingState == TrackingState.STOPPED) {
+                                detectedImages.remove(image.index)
+                            }
+                        }
+                    }
+                },
                 sessionConfiguration = { session, config ->
                     runtimeDatabase.applyTo(config, session)
                     config.focusMode = Config.FocusMode.AUTO
@@ -207,25 +278,6 @@ actual fun SceneView(
                             config.augmentedFaceMode = Config.AugmentedFaceMode.MESH3D
                         }
                         else -> {}
-                    }
-                },
-                onSessionCreated = { session ->
-                    runtimeDatabase.bind(session)
-                    sessionState.value = session
-                },
-                onSessionUpdated = { _, frame ->
-                    lastFrame = frame
-                    if (arMode == ARMode.Image) {
-                        frame.getUpdatedTrackables(AugmentedImage::class.java).forEach { image ->
-                            if (image.trackingState == TrackingState.TRACKING) {
-                                if (!detectedImages.containsKey(image.index)) {
-                                    detectedImages[image.index] = image
-                                    android.util.Log.d("SceneView", "Image Detected: ${image.name}")
-                                }
-                            } else if (image.trackingState == TrackingState.STOPPED) {
-                                detectedImages.remove(image.index)
-                            }
-                        }
                     }
                 },
                 onTouchEvent = { motionEvent, _ ->
@@ -248,34 +300,47 @@ actual fun SceneView(
                 for (anchor in placedAnchors) {
                     AnchorNode(anchor = anchor) {
                         if (defaultModelBuffer != null) {
-                            ARModelInstance(modelLoader, defaultModelBuffer, 0.5f)
+                            ARModelInstance(
+                                modelLoader = modelLoader, 
+                                buffer = defaultModelBuffer, 
+                                scale = 0.5f * scale,
+                                animationSpeed = animationSpeed,
+                                textContent = textContent,
+                                billboard = billboard,
+                                cameraPosition = cameraWorldPosition
+                            )
                         }
                     }
                 }
 
                 if (arMode == ARMode.Image) {
                     for (image in detectedImages.values) {
-                        if (videoUrl != null && (image.name == trackingImage || image.name == "images/cute.jpeg")) {
+                        if (videoUrl != null && image.name == trackingImage) {
                             AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
                                 if (mediaPlayer != null) {
                                     VideoNode(
                                         player = mediaPlayer,
                                         position = Float3(0f, 0.01f, 0f),
-                                        rotation = Float3(-90f, 0f, 0f)
+                                        rotation = Float3(-90f, 0f, 0f),
+                                        scale = Float3(scale, scale, scale)
                                     )
                                 }
                             }
                         } else {
-                            val targetModelUrl = if (image.name == trackingImage) modelUrl else imageTargets[image.name]
+                            val targetModelUrl = imageTargets[image.name] ?: if (image.name == trackingImage) modelUrl else null
                             val buffer = targetModelUrl?.let { modelBuffers[it] }
                             if (buffer != null) {
                                 AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
                                     ARModelInstance(
                                         modelLoader = modelLoader, 
                                         buffer = buffer, 
-                                        scale = 0.5f,
+                                        scale = 0.5f * scale,
                                         position = Position(0f, 0.01f, 0f),
-                                        rotation = Rotation(-90f, 0f, 0f)
+                                        rotation = Rotation(-90f, 0f, 0f),
+                                        animationSpeed = animationSpeed,
+                                        textContent = textContent,
+                                        billboard = billboard,
+                                        cameraPosition = cameraWorldPosition
                                     )
                                 }
                             }
@@ -307,7 +372,16 @@ actual fun SceneView(
                 for (url in allMainBuffers) {
                     val buffer = modelBuffers[url]
                     if (buffer != null) {
-                        ARModelInstance(modelLoader, buffer, 1.0f)
+                        ARModelInstance(
+                            modelLoader = modelLoader, 
+                            buffer = buffer, 
+                            scale = 1.0f * scale,
+                            autoRotate = autoRotate,
+                            animationSpeed = animationSpeed,
+                            textContent = textContent,
+                            billboard = billboard,
+                            cameraPosition = cameraWorldPosition
+                        )
                     }
                 }
 
@@ -315,7 +389,8 @@ actual fun SceneView(
                     VideoNode(
                         player = mediaPlayer,
                         position = Float3(0f, 0.01f, 0f),
-                        rotation = Float3(-90f, 0f, 0f)
+                        rotation = Float3(-90f, 0f, 0f),
+                        scale = Float3(scale, scale, scale)
                     )
                 }
             }
@@ -327,6 +402,27 @@ actual fun SceneView(
                 color = Color(0xFFDAA520),
                 trackColor = Color.Transparent
             )
+        }
+
+        if (!textContent.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 100.dp),
+                contentAlignment = if (billboard) Alignment.Center else Alignment.BottomCenter
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = textContent,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
     }
 }

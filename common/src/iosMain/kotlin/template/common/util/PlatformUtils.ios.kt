@@ -27,6 +27,8 @@ package template.common.util
 import platform.Foundation.NSUserDefaults
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = false
+
     actual fun changeLanguage(code: String) {
         val defaults = NSUserDefaults.standardUserDefaults
         if (code.isEmpty()) {
@@ -42,5 +44,20 @@ actual object PlatformUtils {
 
     actual fun changeTheme(isDark: Boolean) {
         // No-op or implementation if needed for iOS
+    }
+
+    actual fun hardReset() {
+        // iOS doesn't need a hard browser reset
+    }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        // Not implemented for iOS yet
+    }
+
+    actual fun generateId(): String = (0..1000000).random().toString()
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        // Simple fallback, real iOS impl would use NSData or similar
+        return ByteArray(0)
     }
 }

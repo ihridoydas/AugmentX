@@ -11,12 +11,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.database.ARLocalDataSource
+import template.common.network.ApiService
+import template.common.util.PlatformUtils
 
 @Composable
 fun ARVideoDemo(onBack: () -> Unit) {
+    val apiService: ApiService = koinInject()
+    val localDataSource: ARLocalDataSource = koinInject()
+    
+    val managedItems by apiService.managedItems.collectAsState()
+    val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
+    
+    // Find the first available item that IS a video
+    val sampleItem = remember(managedItems, localItems) {
+        (managedItems + localItems).firstOrNull { it.isVideo }
+    }
+
     var showGuide by remember { mutableStateOf(true) }
 
     Scaffold(
@@ -31,13 +46,19 @@ fun ARVideoDemo(onBack: () -> Unit) {
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            SceneView(
-                modifier = Modifier.fillMaxSize(),
-                videoUrl = "https://github.com/ihridoydas/ARSceneViewComposeSample/raw/refs/heads/feature/default/app/src/main/res/raw/sakura.mp4",
-                isAR = true,
-                arMode = ARMode.Image,
-                trackingImage = "images/cute.jpeg"
-            )
+            if (sampleItem != null) {
+                SceneView(
+                    modifier = Modifier.fillMaxSize(),
+                    videoUrl = sampleItem.contentUrl,
+                    isAR = true,
+                    arMode = ARMode.Image,
+                    trackingImage = if (PlatformUtils.isWeb) sampleItem.mindUrl else sampleItem.targetImageUrl
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No Video AR target found in database.", color = Color.White)
+                }
+            }
 
             // Simplified Bottom Guide
             Surface(
@@ -54,7 +75,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
                 ) {
                     if (showGuide) {
                         Text(
-                            text = "Point at cute.jpeg to play the bitmoji video.",
+                            text = "Point at the target image to play ${sampleItem?.name ?: "video"} ${if (PlatformUtils.isWeb) "(Web)" else "(Native)"}.",
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )

@@ -135,7 +135,12 @@ actual fun SceneView(
                     } else {
                         trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { 
                             if (it.startsWith("/")) it else "/$it" 
-                        } ?: "/images/cute.mind"
+                        } ?: ""
+                    }
+                    
+                    if (mindFile.isBlank()) {
+                        println("SceneView Error: No tracking image provided")
+                        return@clickable
                     }
                     
                     val modelAssets = mutableListOf<String>()

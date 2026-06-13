@@ -37,7 +37,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 
 @Composable
-fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: () -> Unit) {
+fun ARManageScreen(
+    onBack: () -> Unit, 
+    onEdit: (ManagedARItem) -> Unit, 
+    onAdd: () -> Unit,
+    onView: (ManagedARItem) -> Unit
+) {
     val apiService: ApiService = koinInject()
     val localDataSource: ARLocalDataSource = koinInject()
     
@@ -133,6 +138,7 @@ fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: (
                         item = item,
                         isLocal = isLocal,
                         onEdit = { onEdit(item) },
+                        onView = { onView(item) },
                         onDelete = {
                             scope.launch {
                                 if (isLocal) localDataSource.deleteItem(item.id)
@@ -147,7 +153,13 @@ fun ARManageScreen(onBack: () -> Unit, onEdit: (ManagedARItem) -> Unit, onAdd: (
 }
 
 @Composable
-fun ManagedItemCard(item: ManagedARItem, isLocal: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+fun ManagedItemCard(
+    item: ManagedARItem, 
+    isLocal: Boolean, 
+    onEdit: () -> Unit, 
+    onView: () -> Unit,
+    onDelete: () -> Unit
+) {
     var imageBitmap by remember(item.targetImageUrl) { mutableStateOf<ImageBitmap?>(null) }
     
     LaunchedEffect(item.targetImageUrl) {
@@ -276,6 +288,19 @@ fun ManagedItemCard(item: ManagedARItem, isLocal: Boolean, onEdit: () -> Unit, o
                     )
                     
                     Row {
+                        FilledIconButton(
+                            onClick = onView,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, "View", modifier = Modifier.size(20.dp))
+                        }
+
+                        Spacer(Modifier.width(8.dp))
+
                         FilledIconButton(
                             onClick = onEdit,
                             colors = IconButtonDefaults.filledIconButtonColors(

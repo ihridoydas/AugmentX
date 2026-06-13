@@ -116,37 +116,67 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                 shape = RoundedCornerShape(12.dp)
             )
 
-            // Step 1: Target Image
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CreatorStep(
-                    title = "1. Select Tracking Image",
-                    description = "JPG/PNG image to be tracked.",
-                    isDone = targetImageUrl != null,
-                    onClick = {
-                        PlatformUtils.pickFile("image/*") { url -> targetImageUrl = url }
-                    }
+            if (!PlatformUtils.isWeb) {
+                // Android-specific: Direct URL inputs
+                OutlinedTextField(
+                    value = targetImageUrl ?: "",
+                    onValueChange = { targetImageUrl = it },
+                    label = { Text("Tracking Image URL (JPG/PNG)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = { Text("https://example.com/target.jpg") }
                 )
-                if (targetImageUrl != null) {
-                    Text("Image ready for upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                }
-            }
 
-            // Step 2: Content
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CreatorStep(
-                    title = "2. Select AR Content",
-                    description = "GLB model or MP4 video.",
-                    isDone = contentUrl != null,
-                    onClick = {
-                        PlatformUtils.pickFile(".glb,.mp4,video/*") { url -> 
-                            contentUrl = url
-                            isVideo = url.contains("video", ignoreCase = true) || 
-                                     url.contains(".mp4", ignoreCase = true)
-                        }
-                    }
+                OutlinedTextField(
+                    value = contentUrl ?: "",
+                    onValueChange = {
+                        contentUrl = it
+                        isVideo = it.lowercase().endsWith(".mp4")
+                    },
+                    label = { Text("AR Content URL (GLB/MP4)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    placeholder = { Text("https://example.com/model.glb") }
                 )
-                if (contentUrl != null) {
-                    Text(text = if (isVideo) "Video ready" else "3D Model ready", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isVideo, onCheckedChange = { isVideo = it })
+                    Text("Is Video Content?")
+                }
+            } else {
+                // Web/Default: File Pickers
+                // Step 1: Target Image
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CreatorStep(
+                        title = "1. Select Tracking Image",
+                        description = "JPG/PNG image to be tracked.",
+                        isDone = targetImageUrl != null,
+                        onClick = {
+                            PlatformUtils.pickFile("image/*") { url -> targetImageUrl = url }
+                        }
+                    )
+                    if (targetImageUrl != null) {
+                        Text("Image ready for upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                // Step 2: Content
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CreatorStep(
+                        title = "2. Select AR Content",
+                        description = "GLB model or MP4 video.",
+                        isDone = contentUrl != null,
+                        onClick = {
+                            PlatformUtils.pickFile(".glb,.mp4,video/*") { url -> 
+                                contentUrl = url
+                                isVideo = url.contains("video", ignoreCase = true) || 
+                                         url.contains(".mp4", ignoreCase = true)
+                            }
+                        }
+                    )
+                    if (contentUrl != null) {
+                        Text(text = if (isVideo) "Video ready" else "3D Model ready", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
 

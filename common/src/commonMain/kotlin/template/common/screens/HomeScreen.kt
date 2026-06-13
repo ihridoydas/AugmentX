@@ -81,6 +81,7 @@ import template.common.models.DemoItem
 import template.common.models.demoCategories
 import template.common.ui.LanguageDropdown
 import template.common.ui.ThemeToggleButton
+import template.common.util.PlatformUtils
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.storage.local.theme.ThemeLocalDataStore
@@ -215,19 +216,46 @@ fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinI
             Spacer(modifier = Modifier.height(8.dp))
 
             val selectedCategory = demoCategories[selectedTabIndex]
+            val filteredItems = remember(selectedCategory, PlatformUtils.isWeb) {
+                if (selectedCategory.title == "Creator") {
+                    selectedCategory.items.filter { item ->
+                        if (PlatformUtils.isWeb) {
+                            item.id == "ar-creator" || item.id == "ar-manage"
+                        } else {
+                            item.id == "ar-creator_android" || item.id == "ar-manage_Android"
+                        }
+                    }
+                } else {
+                    selectedCategory.items
+                }
+            }
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                items(selectedCategory.items) { item ->
+                items(filteredItems) { item ->
                     DemoCard(
                         item = item,
                         onClick = {
                             when (item.id) {
-                                "ar-creator" -> navigator.navigate(ScreenDestinations.ARCreator())
-                                "ar-manage" -> navigator.navigate(ScreenDestinations.ARManage)
+                                "ar-creator" -> {
+                                    if (PlatformUtils.isWeb) {
+                                        navigator.navigate(ScreenDestinations.ARCreator())
+                                    } else {
+                                        navigator.navigate(ScreenDestinations.ARCreatorAndroid())
+                                    }
+                                }
+                                "ar-manage" -> {
+                                    if (PlatformUtils.isWeb) {
+                                        navigator.navigate(ScreenDestinations.ARManage)
+                                    } else {
+                                        navigator.navigate(ScreenDestinations.ARManageAndroid)
+                                    }
+                                }
+                                "ar-creator_android" -> navigator.navigate(ScreenDestinations.ARCreatorAndroid())
+                                "ar-manage_Android" -> navigator.navigate(ScreenDestinations.ARManageAndroid)
                                 else -> navigator.navigate(ScreenDestinations.DemoScreen(item.id))
                             }
                         },

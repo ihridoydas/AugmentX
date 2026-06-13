@@ -113,11 +113,26 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                         )
                     }
 
+                    is ScreenDestinations.ARCreatorAndroid -> NavEntry(key) {
+                        template.common.screens.ARCreatorScreen(
+                            editId = key.editId,
+                            onBack = { navigator.goBack() }
+                        )
+                    }
+
                     ScreenDestinations.ARManage -> NavEntry(key) {
                         ARManageScreen(
                             onBack = { navigator.goBack() },
                             onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreator(item.id)) },
                             onAdd = { navigator.navigate(ScreenDestinations.ARCreator()) }
+                        )
+                    }
+
+                    ScreenDestinations.ARManageAndroid -> NavEntry(key) {
+                        ARManageScreen(
+                            onBack = { navigator.goBack() },
+                            onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreatorAndroid(item.id)) },
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreatorAndroid()) }
                         )
                     }
                 }

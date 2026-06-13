@@ -42,5 +42,11 @@ sealed interface ScreenDestinations : NavKey {
     data class ARCreator(val editId: String? = null) : ScreenDestinations
 
     @Serializable
+    data class ARCreatorAndroid(val editId: String? = null) : ScreenDestinations
+
+    @Serializable
     data object ARManage : ScreenDestinations
+
+    @Serializable
+    data object ARManageAndroid : ScreenDestinations
 }

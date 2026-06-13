@@ -88,8 +88,10 @@ val demoCategories = listOf(
     DemoCategory(
         title = "Creator",
         items = listOf(
-            DemoItem("ar-creator", "Create New AR", "Upload image and 3D model"),
-            DemoItem("ar-manage", "Manage My AR", "View, Edit, or Delete your AR experiences")
+            DemoItem("ar-creator", "Create New AR (Web)", "Upload image and 3D model"),
+            DemoItem("ar-manage", "Manage My AR (Web)", "View, Edit, or Delete your AR experiences"),
+            DemoItem("ar-creator_android", "Create AR (Android)", "Native SceneView Experience"),
+            DemoItem("ar-manage_Android", "Manage AR (Android)", "Native Asset Management")
         )
     )
 )

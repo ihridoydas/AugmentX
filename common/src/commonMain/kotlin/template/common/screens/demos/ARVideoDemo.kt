@@ -14,10 +14,13 @@ import androidx.compose.ui.unit.dp
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.util.PlatformUtils
 
 @Composable
 fun ARVideoDemo(onBack: () -> Unit) {
     var showGuide by remember { mutableStateOf(true) }
+    
+    val trackingTarget = if (PlatformUtils.isWeb) "images/cute.mind" else "images/cute.jpeg"
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -33,10 +36,10 @@ fun ARVideoDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                videoUrl = "https://github.com/ihridoydas/ARSceneViewComposeSample/raw/refs/heads/feature/default/app/src/main/res/raw/sakura.mp4",
+                videoUrl = "https://raw.githubusercontent.com/ihridoydas/ARSceneViewComposeSample/refs/heads/feature/default/app/src/main/res/raw/sakura.mp4",
                 isAR = true,
                 arMode = ARMode.Image,
-                trackingImage = "images/cute.jpeg"
+                trackingImage = trackingTarget
             )
 
             // Simplified Bottom Guide
@@ -54,7 +57,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
                 ) {
                     if (showGuide) {
                         Text(
-                            text = "Point at cute.jpeg to play the bitmoji video.",
+                            text = "Point at cute.jpeg to play the video ${if (PlatformUtils.isWeb) "(Web)" else "(Native)"}.",
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )

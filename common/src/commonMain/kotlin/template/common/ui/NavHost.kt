@@ -24,24 +24,30 @@
 */
 package template.common.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import template.common.screens.HomeScreen
 import template.common.screens.ViewScreen
 import template.common.screens.DemoScreen
+import template.common.screens.ARManageScreen
 import template.navigation.Navigator
 import template.navigation.ScreenDestinations
 import template.theme.components.SpatialWrapper
+import androidx.compose.runtime.DisposableEffect
 
 @Composable
-fun MainAnimationNavHost() {
+fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) {
     val backStack = remember { mutableStateListOf<ScreenDestinations>(ScreenDestinations.HomeScreen) }
+    val interceptors = remember { mutableStateListOf<() -> Boolean>() }
 
     val navigator = remember {
         object : Navigator {
@@ -57,11 +63,24 @@ fun MainAnimationNavHost() {
         }
     }
 
+    LaunchedEffect(onBackPressedRegister) {
+        onBackPressedRegister?.invoke {
+            // Check interceptors in reverse order (last added first)
+            val handled = interceptors.toList().reversed().any { it() }
+            if (!handled) {
+                navigator.goBack()
+            }
+        }
+    }
+
     SpatialWrapper {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
             NavDisplay(
                 backStack = backStack,
-                onBack = { navigator.goBack() },
+                onBack = { 
+                    val handled = interceptors.toList().reversed().any { it() }
+                    if (!handled) navigator.goBack() 
+                },
             ) { key ->
                 when (key) {
                     ScreenDestinations.HomeScreen -> NavEntry(key) {
@@ -69,13 +88,51 @@ fun MainAnimationNavHost() {
                     }
 
                     ScreenDestinations.ViewScreen -> NavEntry(key) {
-                        ViewScreen(onBackPress = { navigator.goBack() })
+                        ViewScreen(
+                            onBackPress = { navigator.goBack() },
+                            onBackIntercept = { interceptor ->
+                                DisposableEffect(interceptor) {
+                                    interceptors.add(interceptor)
+                                    onDispose { interceptors.remove(interceptor) }
+                                }
+                            }
+                        )
                     }
 
                     is ScreenDestinations.DemoScreen -> NavEntry(key) {
                         DemoScreen(
                             id = key.id,
                             navigator = navigator,
+                        )
+                    }
+
+                    is ScreenDestinations.ARCreator -> NavEntry(key) {
+                        template.common.screens.ARCreatorScreen(
+                            editId = key.editId,
+                            onBack = { navigator.goBack() }
+                        )
+                    }
+
+                    is ScreenDestinations.ARCreatorAndroid -> NavEntry(key) {
+                        template.common.screens.ARCreatorScreen(
+                            editId = key.editId,
+                            onBack = { navigator.goBack() }
+                        )
+                    }
+
+                    ScreenDestinations.ARManage -> NavEntry(key) {
+                        ARManageScreen(
+                            onBack = { navigator.goBack() },
+                            onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreator(item.id)) },
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreator()) }
+                        )
+                    }
+
+                    ScreenDestinations.ARManageAndroid -> NavEntry(key) {
+                        ARManageScreen(
+                            onBack = { navigator.goBack() },
+                            onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreatorAndroid(item.id)) },
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreatorAndroid()) }
                         )
                     }
                 }

@@ -18,41 +18,43 @@ import androidx.compose.ui.unit.sp
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.util.PlatformUtils
 
 @Composable
 fun ARImageDemo(onBack: () -> Unit) {
     var showGuide by remember { mutableStateOf(false) }
     
-    // Define image-to-model mapping
-    val imageTargetsMap = mapOf(
-        "images/earth.jpg" to "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
-        "images/cute.jpeg" to "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-    )
+    // In this demo, we use a local asset for tracking.
+    // NOTE: Web platform requires a compiled .mind file, while Android tracks JPG/PNG directly.
+    val trackingTarget = if (PlatformUtils.isWeb) "images/cute.mind" else "images/cute.jpeg"
+    val modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
     
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent, // Essential for Web camera visibility
-        topBar = {
-            AppBar(
-                title = "AR Image Mapping",
-                navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNav = onBack,
-            )
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            SceneView(
-                modifier = Modifier.fillMaxSize(),
-                isAR = true,
-                arMode = ARMode.Image,
-                imageTargets = imageTargetsMap,
-                trackingImage = "images/cute.jpeg"
-            )
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+        SceneView(
+            modifier = Modifier.fillMaxSize(),
+            isAR = true,
+            arMode = ARMode.Image,
+            trackingImage = trackingTarget,
+            modelUrl = modelUrl,
+            // videoUrl = "https://example.com/video.mp4" // Android also supports video tracking
+        )
+
+        // Overlay UI
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f))) {
+                AppBar(
+                    title = "AR Image Mapping",
+                    navIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                    onNav = onBack,
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
 
             // Simplified Bottom Guide
             Surface(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.CenterHorizontally)
                     .padding(24.dp)
                     .clickable { showGuide = !showGuide },
                 color = Color.Black.copy(alpha = 0.7f),
@@ -77,7 +79,7 @@ fun ARImageDemo(onBack: () -> Unit) {
                                 Text("Chibi", color = Color.White, fontSize = 10.sp)
                             }
                             Text(
-                                text = "Point at cute.jpeg to see the Astronaut",
+                                text = "Point at cute.jpeg to see the ${if (PlatformUtils.isWeb) "Astronaut (Web)" else "Astronaut (Native)"}",
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyMedium
                             )

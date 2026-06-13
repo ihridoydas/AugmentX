@@ -22,13 +22,22 @@
 * SOFTWARE.
 *
 */
+@file:OptIn(ExperimentalWasmJsInterop::class)
 @file:Suppress("MatchingDeclarationName")
 
 package template.common.util
 
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
+import kotlinx.browser.window
+import kotlinx.coroutines.await
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
+import org.khronos.webgl.ArrayBuffer
 
 actual object PlatformUtils {
+    actual val isWeb: Boolean = true
+
     actual fun changeLanguage(code: String) {
         val lang = if (code.isEmpty()) "en" else code
         document.documentElement?.setAttribute("lang", lang)
@@ -38,4 +47,37 @@ actual object PlatformUtils {
     actual fun changeTheme(isDark: Boolean) {
         println("PlatformUtils Web: changeTheme to isDark=$isDark")
     }
+
+    actual fun hardReset() {
+        println("PlatformUtils Web: Hard Resetting...")
+        triggerHardReset()
+    }
+
+    actual fun pickFile(allowedTypes: String, onPicked: (String) -> Unit) {
+        val input = document.createElement("input") as org.w3c.dom.HTMLInputElement
+        input.type = "file"
+        input.accept = allowedTypes
+        input.onchange = {
+            val file = input.files?.item(0)
+            if (file != null) {
+                val url = org.w3c.dom.url.URL.createObjectURL(file)
+                // Append original filename and type as a fragment hint for type detection
+                val hint = "#filename=${file.name}&type=${file.type}"
+                onPicked(url + hint)
+            }
+        }
+        input.click()
+    }
+
+    actual suspend fun readBytes(url: String): ByteArray {
+        val cleanUrl = url.substringBefore("#")
+        val response = window.fetch(cleanUrl).await()
+        val buffer = response.arrayBuffer().await()
+        val uint8Array = Uint8Array(buffer)
+        return ByteArray(uint8Array.length) { i -> uint8Array[i] }
+    }
 }
+
+@JsFun("() => { window.location.href = window.location.origin; }")
+external fun triggerHardReset()
+

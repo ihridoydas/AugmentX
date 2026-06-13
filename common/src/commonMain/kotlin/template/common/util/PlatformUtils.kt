@@ -25,7 +25,15 @@
 package template.common.util
 
 expect object PlatformUtils {
+    val isWeb: Boolean
+
     fun changeLanguage(code: String)
 
     fun changeTheme(isDark: Boolean)
+
+    fun hardReset()
+
+    fun pickFile(allowedTypes: String, onPicked: (String) -> Unit)
+
+    suspend fun readBytes(url: String): ByteArray
 }

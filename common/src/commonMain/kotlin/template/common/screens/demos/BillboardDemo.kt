@@ -33,6 +33,8 @@ fun BillboardDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+                billboard = billboardEnabled,
+                textContent = if (billboardEnabled) "Billboard Node" else null
             )
 
             Column(

@@ -21,6 +21,12 @@ import org.w3c.dom.HTMLElement
 @JsFun("(mindFile, htmlContent) => window.startARSession(mindFile, htmlContent)")
 external fun callStartWebAR(mindFile: String, htmlContent: String)
 
+@JsFun("(property, value) => { if (window.updateARProperty) window.updateARProperty(property, value); }")
+external fun callUpdateARProperty(property: String, value: String)
+
+@JsFun("(property, value) => { if (window.updateModelViewerProperty) window.updateModelViewerProperty(property, value); }")
+external fun callUpdateModelViewerProperty(property: String, value: String)
+
 @JsFun("() => { if (window.stopARSession) window.stopARSession(); }")
 external fun callStopWebAR()
 
@@ -39,6 +45,12 @@ actual fun SceneView(
     imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
+    exposure: Float,
+    fogDensity: Float,
+    animationSpeed: Float,
+    textContent: String?,
+    scale: Float,
+    billboard: Boolean,
     onModelLoaded: () -> Unit
 ) {
     val allUrls = remember(modelUrl, modelUrls, imageTargets) {
@@ -64,40 +76,53 @@ actual fun SceneView(
     // Standard 3D Viewer Logic (Non-AR)
     if (!isAR || arMode != ARMode.Image) {
         val container = remember { (document.createElement("div") as HTMLElement) }
-        LaunchedEffect(allUrls, autoRotate) {
-            val primaryUrl = allUrls.firstOrNull() ?: ""
-            println("SceneView: Loading 3D model: $primaryUrl")
-            
-            // Offset the viewer so it doesn't block the AppBar (approx 64px)
+        
+        // Initial setup
+        LaunchedEffect(Unit) {
             container.setAttribute("style", "width: 100%; height: 100%; background: transparent; position: absolute; top: 0; left: 0;")
-            
-            val autoRotateAttr = if (autoRotate) "auto-rotate" else ""
-            
+            val primaryUrl = allUrls.firstOrNull() ?: ""
             container.innerHTML = """
                 <model-viewer 
                     src="$primaryUrl" 
                     camera-controls 
                     touch-action="pan-y" 
-                    $autoRotateAttr
                     shadow-intensity="1"
                     environment-image="neutral"
-                    exposure="1"
                     interaction-prompt="auto"
                     ar-modes="webxr scene-viewer quick-look"
                     style="width:100%; height:100%; background:transparent; --progress-bar-color: transparent;">
                 </model-viewer>
             """.trimIndent()
-            
-            val mv = container.querySelector("model-viewer")
-            mv?.addEventListener("load", {
-                println("SceneView: Model loaded successfully")
-            })
-            mv?.addEventListener("error", {
-                println("SceneView: Model failed to load")
-            })
-            
             onModelLoaded()
         }
+
+        // Real-time attribute updates
+        LaunchedEffect(exposure, scale, autoRotate, textContent, animationSpeed) {
+            val mv = container.querySelector("model-viewer") ?: return@LaunchedEffect
+            mv.setAttribute("exposure", exposure.toString())
+            mv.setAttribute("scale", "$scale $scale $scale")
+            if (autoRotate) mv.setAttribute("auto-rotate", "") else mv.removeAttribute("auto-rotate")
+            
+            callUpdateModelViewerProperty("timeScale", animationSpeed.toString())
+
+            // Handle text hotspot
+            if (!textContent.isNullOrBlank()) {
+                val existingHotspot = mv.querySelector("[slot='hotspot-text']")
+                if (existingHotspot == null) {
+                    val div = document.createElement("div")
+                    div.setAttribute("slot", "hotspot-text")
+                    div.setAttribute("data-position", "0 1 0")
+                    div.setAttribute("style", "background: white; padding: 4px; border-radius: 4px; color: black; font-weight: bold;")
+                    div.textContent = textContent
+                    mv.appendChild(div)
+                } else {
+                    existingHotspot.textContent = textContent
+                }
+            } else {
+                mv.querySelector("[slot='hotspot-text']")?.remove()
+            }
+        }
+        
         DisposableEffect(container) {
             val viewerContainer = document.getElementById("ViewerContainer") as? HTMLElement
             if (viewerContainer != null) {
@@ -122,6 +147,15 @@ actual fun SceneView(
                     println("SceneView: Cleanup error: ${e.message}")
                 }
             }
+        }
+    }
+
+    // AR Real-time Updates
+    LaunchedEffect(exposure, scale, textContent, arStarted, billboard) {
+        if (arStarted) {
+            callUpdateARProperty("exposure", exposure.toString())
+            callUpdateARProperty("scale", scale.toString())
+            callUpdateARProperty("text", if (billboard) (textContent ?: "") else "")
         }
     }
 
@@ -163,7 +197,7 @@ actual fun SceneView(
                         if (url != null) {
                             val id = "targetModel$index"
                             modelAssets.add("<a-asset-item id=\"$id\" src=\"$url\"></a-asset-item>")
-                            modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"0.5 0.5 0.5\"></a-gltf-model></a-entity>")
+                            modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"${0.5 * scale} ${0.5 * scale} ${0.5 * scale}\"></a-gltf-model>${if (!textContent.isNullOrBlank()) "<a-text value=\"$textContent\" position=\"0 0.5 0\" align=\"center\"></a-text>" else ""}</a-entity>")
                         }
                     }
 
@@ -172,7 +206,7 @@ actual fun SceneView(
                             mindar-image="imageTargetSrc: $mindFile; autoStart: true; uiScanning: yes; uiLoading: yes;" 
                             embedded="false"
                             background="transparent: true"
-                            renderer="alpha: true; colorManagement: true; antialias: true; logarithmicDepthBuffer: true;"
+                            renderer="alpha: true; colorManagement: true; antialias: true; logarithmicDepthBuffer: true; exposure: $exposure;"
                             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
                             style="width: 100vw; height: 100vh; background: transparent;">
                             <a-assets>${modelAssets.joinToString("")}</a-assets>

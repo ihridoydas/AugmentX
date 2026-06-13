@@ -32,6 +32,7 @@ fun ImageDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb", 
+                scale = scale
             )
 
             Column(

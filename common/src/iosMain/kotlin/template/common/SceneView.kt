@@ -42,6 +42,12 @@ actual fun SceneView(
     imageTargets: Map<String, String>,
     autoRotate: Boolean,
     skyboxUrl: String?,
+    exposure: Float,
+    fogDensity: Float,
+    animationSpeed: Float,
+    textContent: String?,
+    scale: Float,
+    billboard: Boolean,
     onModelLoaded: () -> Unit
 ) {
     val allUrls = remember(modelUrl, modelUrls, imageTargets) {
@@ -168,7 +174,7 @@ actual fun SceneView(
                         if (url != null) {
                             val id = "targetModel$index"
                             modelAssets.add("<a-asset-item id=\"$id\" src=\"$url\"></a-asset-item>")
-                            modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"0.5 0.5 0.5\"></a-gltf-model></a-entity>")
+                            modelEntities.add("<a-entity mindar-image-target=\"targetIndex: $index\"><a-gltf-model src=\"#$id\" scale=\"0.5 0.5 0.5\"></a-gltf-model>${if (!textContent.isNullOrBlank()) "<a-text value=\"$textContent\" position=\"0 0.5 0\" align=\"center\"></a-text>" else ""}</a-entity>")
                         }
                     }
 

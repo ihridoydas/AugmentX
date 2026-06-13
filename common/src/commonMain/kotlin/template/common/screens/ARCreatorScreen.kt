@@ -57,6 +57,11 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     var targetId by remember { mutableStateOf(existingItem?.id) }
     var compiledMindUrl by remember { mutableStateOf(existingItem?.mindUrl) }
 
+    var exposure by remember { mutableStateOf(1.0f) }
+    var scale by remember { mutableStateOf(1.0f) }
+    var liveText by remember { mutableStateOf("") }
+    var showControls by remember { mutableStateOf(true) }
+
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(existingItem) {
@@ -67,11 +72,11 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
             isVideo = it.isVideo
             targetId = it.id
             compiledMindUrl = it.mindUrl
+            liveText = it.name
         }
     }
 
     if (showAR && compiledMindUrl != null && contentUrl != null) {
-        // ... (SceneView logic remains same)
         Box(modifier = Modifier.fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
@@ -80,15 +85,63 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                 trackingImage = if (PlatformUtils.isWeb) compiledMindUrl else targetImageUrl,
                 videoUrl = if (isVideo) contentUrl else null,
                 modelUrl = if (!isVideo) contentUrl else null,
+                exposure = exposure,
+                scale = scale,
+                textContent = liveText.ifBlank { null },
                 onModelLoaded = { /* Ready */ }
             )
             
-            Box(modifier = Modifier.align(Alignment.TopCenter).background(Color.Black.copy(alpha = 0.5f))) {
-                AppBar(
-                    title = "Live AR: $targetName",
-                    navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                    onNav = { showAR = false }
-                )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.5f))) {
+                    AppBar(
+                        title = "Live AR: $targetName",
+                        navIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                        onNav = { showAR = false }
+                    )
+                }
+                
+                Spacer(modifier = Modifier.weight(1f))
+                
+                if (showControls) {
+                    Card(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Real-time Controls", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                IconButton(onClick = { showControls = false }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Minimize", tint = Color.White)
+                                }
+                            }
+                            
+                            Text("Scale: ${((scale * 10).toInt() / 10.0)}", color = Color.White, fontSize = 12.sp)
+                            Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.1f..3.0f)
+
+                            Text("Exposure: ${((exposure * 10).toInt() / 10.0)}", color = Color.White, fontSize = 12.sp)
+                            Slider(value = exposure, onValueChange = { exposure = it }, valueRange = 0.1f..2.0f)
+
+                            OutlinedTextField(
+                                value = liveText,
+                                onValueChange = { liveText = it },
+                                label = { Text("Overlay Text", color = Color.White.copy(alpha = 0.7f)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                                    focusedBorderColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.BottomEnd) {
+                        FloatingActionButton(onClick = { showControls = true }, containerColor = MaterialTheme.colorScheme.primary) {
+                            Icon(Icons.Default.Add, contentDescription = "Show Controls")
+                        }
+                    }
+                }
             }
         }
         return

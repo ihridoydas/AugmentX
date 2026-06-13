@@ -142,7 +142,7 @@
         console.log("LOG: " + msg);
     }
 
-    screenLog("V66 - Stable AR Re-entry");
+    screenLog("V68 - Interactive Web AR Final");
 
     function onBackPressed() {
         screenLog("Back pressed - Surgical Cleanup...");
@@ -205,6 +205,40 @@
         }
     };
 
+    window.updateARProperty = function(property, value) {
+        const container = document.getElementById("ARContainer");
+        if (!container) return;
+
+        const scene = container.querySelector('a-scene');
+        if (!scene) return;
+
+        if (property === 'exposure') {
+            scene.setAttribute('renderer', 'exposure: ' + value);
+        } else if (property === 'scale') {
+            const sVal = parseFloat(value);
+            scene.querySelectorAll('a-gltf-model').forEach(m => {
+                const s = 0.5 * sVal;
+                m.setAttribute('scale', s + ' ' + s + ' ' + s);
+            });
+            scene.querySelectorAll('a-video').forEach(v => {
+                v.setAttribute('scale', sVal + ' ' + sVal + ' ' + sVal);
+            });
+        } else if (property === 'text') {
+            scene.querySelectorAll('a-text').forEach(t => {
+                t.setAttribute('value', value);
+                t.setAttribute('visible', value.length > 0);
+            });
+        }
+    };
+
+    window.updateModelViewerProperty = function(property, value) {
+        const mv = document.querySelector('model-viewer');
+        if (!mv) return;
+        if (property === 'timeScale') {
+            mv.timeScale = parseFloat(value);
+        }
+    };
+
     window.startARSession = function(mindFile, htmlContent) {
         if (isStoppingAR) {
             setTimeout(() => window.startARSession(mindFile, htmlContent), 400);
@@ -239,7 +273,7 @@
             const sceneEl = container.querySelector('a-scene');
             if (sceneEl) {
                 sceneEl.addEventListener('arReady', () => {
-                    screenLog("MindAR Ready (V66)");
+                    screenLog("MindAR Ready (V68)");
                     window.dispatchEvent(new Event('resize'));
                 });
 

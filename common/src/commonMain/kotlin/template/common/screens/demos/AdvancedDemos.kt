@@ -46,6 +46,7 @@ fun LinesPathsDemo(onBack: () -> Unit) {
 @Composable
 fun MaterialsDemo(onBack: () -> Unit) {
     var selectedVariant by remember { mutableStateOf(0) }
+    var exposure by remember { mutableStateOf(1.0f) }
     val variants = listOf("Default", "Golden", "Midnight", "Arctic")
     
     Scaffold(
@@ -56,7 +57,8 @@ fun MaterialsDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(), 
                 modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/MaterialsVariantsShoe/glTF-Binary/MaterialsVariantsShoe.glb",
-                autoRotate = true
+                autoRotate = true,
+                exposure = exposure
             )
             
             Column(
@@ -65,6 +67,11 @@ fun MaterialsDemo(onBack: () -> Unit) {
             ) {
                 Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
                     Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Environment Exposure", color = Color.White)
+                        Slider(value = exposure, onValueChange = { exposure = it }, valueRange = 0f..3f)
+                        
+                        HorizontalDivider(Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.3f))
+
                         Text("Material Variants", color = Color.White, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

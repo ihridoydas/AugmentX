@@ -33,7 +33,8 @@ fun AnimationDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BrainStem/glTF-Binary/BrainStem.glb"
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BrainStem/glTF-Binary/BrainStem.glb",
+                animationSpeed = if (isPlaying) animationSpeed else 0f
             )
 
             Column(

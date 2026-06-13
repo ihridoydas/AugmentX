@@ -16,6 +16,9 @@ import template.common.components.AppBar
 fun GeometryDemo(onBack: () -> Unit) {
     var selectedShape by remember { mutableStateOf("Box") }
     val shapes = listOf("Box", "Sphere", "Cylinder")
+    
+    var scale by remember { mutableStateOf(1.0f) }
+    var exposure by remember { mutableStateOf(1.0f) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -35,21 +38,35 @@ fun GeometryDemo(onBack: () -> Unit) {
                     "Sphere" -> "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/MetalRoughSpheres/glTF-Binary/MetalRoughSpheres.glb"
                     "Cylinder" -> "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb" // Placeholder
                     else -> "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb"
-                }
+                },
+                scale = scale,
+                exposure = exposure
             )
 
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    shapes.forEach { shape ->
-                        FilterChip(
-                            selected = selectedShape == shape,
-                            onClick = { selectedShape = shape },
-                            label = { Text(shape) },
-                            colors = FilterChipDefaults.filterChipColors(labelColor = Color.White)
-                        )
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))) {
+                    Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            shapes.forEach { shape ->
+                                FilterChip(
+                                    selected = selectedShape == shape,
+                                    onClick = { selectedShape = shape },
+                                    label = { Text(shape) },
+                                    colors = FilterChipDefaults.filterChipColors(labelColor = Color.White)
+                                )
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(8.dp))
+                        
+                        Text("Scale: ${((scale * 10).toInt() / 10.0)}", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.1f..3.0f)
+                        
+                        Text("Exposure: ${((exposure * 10).toInt() / 10.0)}", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                        Slider(value = exposure, onValueChange = { exposure = it }, valueRange = 0.1f..2.0f)
                     }
                 }
                 

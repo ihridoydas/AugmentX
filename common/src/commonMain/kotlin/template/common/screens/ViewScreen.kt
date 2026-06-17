@@ -24,35 +24,78 @@
 */
 package template.common.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.stringResource
 import template.common.SceneView
 import template.common.components.AppBar
 import template.common.generated.resources.Res
 import template.common.generated.resources.welcome
+import template.common.util.PlatformUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewScreen(onBackPress: () -> Unit) {
+fun ViewScreen(
+    onBackPress: () -> Unit,
+    onBackIntercept: @Composable (() -> Boolean) -> Unit = {}
+) {
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    // Register back interceptor
+    onBackIntercept {
+        if (!showExitDialog) {
+            showExitDialog = true
+            true // Handled
+        } else {
+            true
+        }
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Exit AR Session?") },
+            text = { Text("Do you want to stop the AR session and return to the home screen? (This will reload the app to ensure a clean state)") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitDialog = false
+                        // Use hard reset for Web to clear MindAR/Camera locks
+                        PlatformUtils.hardReset()
+                        onBackPress()
+                    }
+                ) {
+                    Text("Exit & Reload")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Transparent, // Forced transparency
         topBar = {
             AppBar(
                 title = stringResource(Res.string.welcome),
                 navIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNav = onBackPress,
+                onNav = { showExitDialog = true },
             )
         },
         content = { padding ->
-            Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Box(modifier = Modifier.padding(padding).fillMaxSize().background(Color.Transparent)) {
                 SceneView(
                     modifier = Modifier.fillMaxSize(),
                     modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb"

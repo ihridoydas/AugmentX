@@ -32,7 +32,7 @@ fun ModelViewerDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+                modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb"
             )
         }
     }

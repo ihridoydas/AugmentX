@@ -47,7 +47,11 @@ import template.storage.local.theme.ThemeMode
 import template.theme.TemplateTheme
 
 @Composable
-fun App(onLanguageChange: (String) -> Unit = {}, onThemeChange: (Boolean) -> Unit = {}) {
+fun App(
+    onLanguageChange: (String) -> Unit = {},
+    onThemeChange: (Boolean) -> Unit = {},
+    onBackPressedRegister: ((() -> Unit) -> Unit)? = null,
+) {
     KoinContext {
         val languageDataStore: LanguageDataStore = koinInject()
         val themeLocalDataStore: ThemeLocalDataStore = koinInject()
@@ -99,7 +103,7 @@ fun App(onLanguageChange: (String) -> Unit = {}, onThemeChange: (Boolean) -> Uni
                     color = Color.Transparent,
                 ) {
                     key(languageCode) {
-                        MainAnimationNavHost()
+                        MainAnimationNavHost(onBackPressedRegister = onBackPressedRegister)
                     }
                 }
             }

@@ -33,7 +33,7 @@ fun ARVideoDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                videoUrl = "https://github.com/ihridoydas/ARSceneViewComposeSample/raw/refs/heads/feature/default/app/src/main/res/raw/sakura.mp4",
+                videoUrl = "https://raw.githubusercontent.com/ihridoydas/ARSceneViewComposeSample/refs/heads/feature/default/app/src/main/res/raw/sakura.mp4",
                 isAR = true,
                 arMode = ARMode.Image,
                 trackingImage = "images/cute.jpeg"

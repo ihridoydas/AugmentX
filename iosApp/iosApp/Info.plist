@@ -46,6 +46,10 @@
 	<dict/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access for AR tracking and 3D visualization.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may need microphone access for AR video content.</string>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>en</string>

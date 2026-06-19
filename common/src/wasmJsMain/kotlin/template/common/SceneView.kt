@@ -129,7 +129,14 @@ actual fun SceneView(
         if (isAR && arMode == ARMode.Image && !arStarted) {
             Box(
                 modifier = Modifier.fillMaxSize().background(Color.Black).clickable {
-                    val mindFile = trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { if (it.startsWith("/")) it else "/$it" } ?: "/images/cute.mind"
+                    val isAbsolute = trackingImage?.startsWith("http") == true || trackingImage?.startsWith("blob:") == true
+                    val mindFile = if (isAbsolute) {
+                        trackingImage!!
+                    } else {
+                        trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { 
+                            if (it.startsWith("/")) it else "/$it" 
+                        } ?: "/images/cute.mind"
+                    }
                     
                     val modelAssets = mutableListOf<String>()
                     val modelEntities = mutableListOf<String>()
@@ -139,10 +146,10 @@ actual fun SceneView(
 
                     // Handle Video if present
                     videoUrl?.let { url ->
-                        // Removed type to be more flexible and added autoplay
-                        modelAssets.add("<video id=\"arVideo\" src=\"$url\" loop=\"true\" crossorigin=\"anonymous\" muted playsinline webkit-playsinline preload=\"auto\" autoplay></video>")
+                        // Removed 'muted' and 'autoplay' from tag to control it surgically via JS
+                        modelAssets.add("<video id=\"arVideo\" src=\"$url\" loop=\"true\" crossorigin=\"anonymous\" playsinline webkit-playsinline preload=\"auto\"></video>")
+                        
                         // Default to index 0 for the video if it's the main AR content
-                        // Ensure it's positioned correctly and has a reasonable size
                         modelEntities.add("<a-entity mindar-image-target=\"targetIndex: 0\"><a-video src=\"#arVideo\" width=\"1\" height=\"0.56\" position=\"0 0 0\" material=\"shader: flat; src: #arVideo\"></a-video></a-entity>")
                     }
 

@@ -111,12 +111,12 @@ androidComponents {
 }
 
 dependencies {
-    implementation(compose.components.resources)
-    implementation(compose.foundation)
-    implementation(compose.material3)
+    implementation(libs.compose.multiplatform.components.resources)
+    implementation(libs.compose.multiplatform.foundation)
+    implementation(libs.compose.multiplatform.material3)
     // Use Compose Multiplatform dependencies
-    implementation(compose.runtime)
-    implementation(compose.ui)
+    implementation(libs.compose.multiplatform.runtime)
+    implementation(libs.compose.multiplatform.ui)
     // UI
     implementation(libs.accompanist.systemuicontroller)
     implementation(libs.android.material)
@@ -143,7 +143,7 @@ dependencies {
     implementation(projects.storage)
     implementation(projects.theme)
 
-    debugImplementation(compose.uiTooling)
+    debugImplementation(libs.compose.multiplatform.ui.tooling)
     // Others
     debugImplementation(libs.square.leakcanary)
 

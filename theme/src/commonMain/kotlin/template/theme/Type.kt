@@ -26,7 +26,6 @@ package template.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalProvidableLocaleList
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import org.jetbrains.compose.resources.Font
@@ -36,8 +35,7 @@ import template.theme.generated.resources.noto_sans_jp
 
 @Composable
 fun getAppFontFamily(): FontFamily {
-    val localeList = LocalProvidableLocaleList.current
-    val languageCode = localeList.firstOrNull()?.language ?: ""
+    val languageCode = "en"
     println("Typography: current language for font selection is '$languageCode'")
 
     val jpFont = Font(Res.font.noto_sans_jp, FontWeight.Normal)

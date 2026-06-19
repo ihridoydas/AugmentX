@@ -258,19 +258,27 @@
                     // Start video if it's the target
                     const video = document.getElementById("arVideo");
                     if (video) {
-                        screenLog("Target Found - Video State: " + video.readyState);
-                        // Force un-mute and play for muted autoplay
-                        video.muted = true;
+                        screenLog("Target Found - Attempting to play with sound...");
+
+                        // 1. Try playing with sound (User has already interacted to start AR)
+                        video.muted = false;
                         video.play().then(() => {
-                            screenLog("Video playing successfully");
+                            screenLog("Video playing WITH AUDIO");
                         }).catch(err => {
-                            screenLog("Autoplay failed: " + err.message + ". Tap screen to play.");
-                            // Add a one-time global click listener to start the video
-                            const forcePlay = () => {
-                                video.play().then(() => screenLog("Video started by click")).catch(e => screenLog("Click play failed: " + e.message));
-                            };
-                            document.addEventListener('click', forcePlay, { once: true });
-                            document.addEventListener('touchstart', forcePlay, { once: true });
+                            screenLog("Unmuted autoplay blocked. Playing muted...");
+                            // 2. Fallback to muted if unmuted is blocked
+                            video.muted = true;
+                            video.play().then(() => {
+                                screenLog("Video playing (muted). TAP SCREEN TO UNMUTE.");
+                                // 3. One-time tap listener to unmute
+                                const forceUnmute = () => {
+                                    video.muted = false;
+                                    video.play();
+                                    screenLog("Audio enabled via user tap.");
+                                };
+                                document.addEventListener('click', forceUnmute, { once: true });
+                                document.addEventListener('touchstart', forceUnmute, { once: true });
+                            });
                         });
                     }
                 });

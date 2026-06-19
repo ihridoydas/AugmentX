@@ -25,12 +25,12 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
-                implementation(compose.components.uiToolingPreview)
+                implementation(libs.compose.multiplatform.runtime)
+                implementation(libs.compose.multiplatform.foundation)
+                implementation(libs.compose.multiplatform.material3)
+                implementation(libs.compose.multiplatform.ui)
+                implementation(libs.compose.multiplatform.components.resources)
+                implementation(libs.compose.multiplatform.ui.tooling.preview)
                 
                 implementation(libs.kotlin.coroutines)
                 api(libs.androidx.lifecycle.viewmodel)

@@ -23,16 +23,16 @@
 *
 */
 @file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
-@file:OptIn(org.jetbrains.compose.resources.InternalResourceApi::class)
+@file:OptIn(
+    org.jetbrains.compose.resources.InternalResourceApi::class,
+    org.jetbrains.compose.resources.ExperimentalResourceApi::class
+)
 
 package template.common.util
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalProvidableLocaleList
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.intl.LocaleList
 import org.jetbrains.compose.resources.ComposeEnvironment
 import org.jetbrains.compose.resources.LanguageQualifier
 import org.jetbrains.compose.resources.LocalComposeEnvironment
@@ -67,14 +67,8 @@ fun ProvideAppLocale(languageCode: String, isDarkTheme: Boolean, content: @Compo
         }
     }
 
-    // 2. Update the standard Compose LocaleList for other components
-    val localeList = remember(languageCode) {
-        if (languageCode.isEmpty()) LocaleList.current else LocaleList(Locale(languageCode))
-    }
-
     CompositionLocalProvider(
         LocalComposeEnvironment provides customComposeEnvironment,
-        LocalProvidableLocaleList provides localeList,
     ) {
         content()
     }

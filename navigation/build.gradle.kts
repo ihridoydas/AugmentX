@@ -23,10 +23,10 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
+                implementation(libs.compose.multiplatform.runtime)
+                implementation(libs.compose.multiplatform.foundation)
+                implementation(libs.compose.multiplatform.material3)
+                implementation(libs.compose.multiplatform.ui)
                 
                 implementation(libs.kotlinx.serialization.json)
                 api(libs.jetbrains.navigation3)

@@ -20,6 +20,8 @@ plugins {
     alias(libs.plugins.gradle.versions) apply false
     alias(libs.plugins.spotless) apply false
     alias(libs.plugins.javafx.plugin) apply false
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
 }
 
 apply(from = "buildscripts/githooks.gradle")
@@ -59,6 +61,50 @@ subprojects {
         }
     }
 }
+
+val startBackend = tasks.register("startBackend") {
+    group = "application"
+    val projectDir = layout.projectDirectory
+    val logFile = projectDir.file("backend.log").asFile
+    val gradlew = if (System.getProperty("os.name").lowercase().contains("windows")) {
+        projectDir.file("gradlew.bat").asFile.absolutePath
+    } else {
+        projectDir.file("gradlew").asFile.absolutePath
+    }
+
+    doLast {
+        println("🚀 Cleaning ports and starting Backend...")
+        try {
+            // Find PID on port 8888
+            val pid = ProcessBuilder("lsof", "-t", "-i:8888").start().inputStream.bufferedReader().readText().trim()
+            if (pid.isNotEmpty()) {
+                println("Killing existing backend on port 8888 (PID: $pid)")
+                ProcessBuilder("kill", "-9", pid).start().waitFor()
+            }
+        } catch (e: Exception) { /* ignore */ }
+
+        println("🚀 Starting Backend in background...")
+        // Use nohup to ensure it stays alive and detaches
+        val command = listOf("nohup", gradlew, ":backend:run", "--no-daemon")
+        ProcessBuilder(command).apply {
+            redirectErrorStream(true)
+            redirectOutput(ProcessBuilder.Redirect.to(logFile))
+            start()
+        }
+        
+        println("✅ Backend process detached. Logs: ${logFile.absolutePath}")
+        println("⏳ Waiting 5s for server to start...")
+        Thread.sleep(5000)
+    }
+}
+
+tasks.register("runWebWithBackend") {
+    group = "application"
+    description = "Starts the Ktor backend and runs the Wasm web app."
+    dependsOn(startBackend)
+    dependsOn(":common:wasmJsBrowserDevelopmentRun")
+}
+
 
 tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAll") {
     parallel = true

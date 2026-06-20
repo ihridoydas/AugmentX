@@ -216,6 +216,10 @@ actual fun SceneView(
                     """.trimIndent()
 
                     try {
+                        if (mindFile.isBlank()) {
+                            println("SceneView Error: No tracking image provided")
+                            return@clickable
+                        }
                         callStartWebAR(mindFile, html)
                         arStarted = true
                         onModelLoaded()

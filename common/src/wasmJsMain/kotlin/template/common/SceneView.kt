@@ -164,12 +164,17 @@ actual fun SceneView(
             Box(
                 modifier = Modifier.fillMaxSize().background(Color.Black).clickable {
                     val isAbsolute = trackingImage?.startsWith("http") == true || trackingImage?.startsWith("blob:") == true
-                    val mindFile = if (isAbsolute) {
+                    var mindFile = if (isAbsolute) {
                         trackingImage!!
                     } else {
-                        trackingImage?.replace(".jpeg", ".mind")?.replace(".jpg", ".mind")?.let { 
+                        trackingImage?.replace(".jpeg", "_target.mind")?.replace(".jpg", "_target.mind")?.let {
                             if (it.startsWith("/")) it else "/$it" 
                         } ?: ""
+                    }
+
+                    // Force use of _target.mind for server URLs to ensure real tracking data is loaded
+                    if (mindFile.contains("/uploads/") && mindFile.endsWith(".mind") && !mindFile.endsWith("_target.mind")) {
+                        mindFile = mindFile.replace(".mind", "_target.mind")
                     }
                     
                     if (mindFile.isBlank()) {

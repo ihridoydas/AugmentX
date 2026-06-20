@@ -148,7 +148,7 @@ fun main() {
                                 val fileName = when {
                                     partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
                                     partKey == "content" && isVideoValue == false -> "${targetId}_content.glb"
-                                    partKey == "mind" -> "${targetId}.mind"
+                                    partKey == "mind" || originalName.endsWith(".mind") -> "${targetId}_target.mind"
                                     else -> "${targetId}_$originalName"
                                 }
                                 
@@ -171,7 +171,7 @@ fun main() {
                                     }
                                     "mind" -> {
                                         if (file.length() > 100) {
-                                           println("Backend: SUCCESS - Recognized valid 'mind' part.")
+                                           println("Backend: SUCCESS - Recognized valid 'mind' part (${file.length()} bytes).")
                                            customMindFile = file
                                         } else {
                                            println("Backend: WARNING - 'mind' part is too small (${file.length()} bytes).")

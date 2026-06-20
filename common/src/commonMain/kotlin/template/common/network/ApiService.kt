@@ -83,7 +83,8 @@ class ApiService(private val client: HttpClient) {
         contentBlobUrl: String, 
         name: String? = null,
         isVideo: Boolean = false,
-        mindBlobUrl: String? = null
+        mindBlobUrl: String? = null,
+        targetId: String? = null
     ): CompileResponse {
         println("ApiService: Starting upload prep for $name")
         
@@ -108,6 +109,9 @@ class ApiService(private val client: HttpClient) {
                 setBody(MultiPartFormDataContent(
                     formData {
                         // 1. Metadata first (Crucial for Ktor server side)
+                        if (targetId != null) {
+                            append("id", targetId)
+                        }
                         append("name", name ?: "Unnamed")
                         append("isVideo", isVideo.toString())
                         
@@ -141,9 +145,8 @@ class ApiService(private val client: HttpClient) {
     }
 
     suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean, mindBlobUrl: String? = null): CompileResponse {
-        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo, mindBlobUrl)
-        deleteMindAR(targetId) 
-        return response
+        // Pass the targetId to reuse it on the backend
+        return compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo, mindBlobUrl, targetId)
     }
 
     suspend fun deleteMindAR(targetId: String) {

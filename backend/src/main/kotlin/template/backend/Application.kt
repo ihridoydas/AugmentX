@@ -118,7 +118,7 @@ fun main() {
                 try {
                     val multipart = call.receiveMultipart()
                     var targetName = "Unknown"
-                    var targetId = UUID.randomUUID().toString()
+                    var targetId = "" 
                     var targetImageUrl = ""
                     var contentUrl = ""
                     var isVideoValue: Boolean? = null
@@ -130,20 +130,22 @@ fun main() {
                     multipart.forEachPart { part ->
                         partCount++
                         val pName = part.name ?: "unnamed_$partCount"
-                        println("Backend: [Part $partCount] Received: '$pName' (Type: ${part.javaClass.simpleName})")
                         
                         when (part) {
                             is PartData.FormItem -> {
-                                println("Backend: [FormItem] '$pName' = '${part.value}'")
                                 when (pName.lowercase()) {
+                                    "id" -> targetId = part.value
                                     "name" -> targetName = part.value
                                     "isvideo" -> isVideoValue = part.value.toBoolean()
                                 }
                             }
                             is PartData.FileItem -> {
+                                // If targetId is still empty, generate a temporary one or wait for FormItem
+                                // To be safe, we'll assign a UUID if none was provided in earlier parts
+                                if (targetId.isEmpty()) targetId = UUID.randomUUID().toString()
+                                
                                 val originalName = part.originalFileName ?: "file"
                                 val partKey = pName.lowercase()
-                                println("Backend: [FileItem] '$pName' (Original: $originalName, Type: ${part.contentType})")
                                 
                                 val fileName = when {
                                     partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
@@ -158,7 +160,6 @@ fun main() {
                                         input.copyTo(output)
                                     }
                                 }
-                                println("Backend: Saved '$pName' to ${file.name} (${file.length()} bytes)")
                                 
                                 when (partKey) {
                                     "image" -> targetImageUrl = "$baseUrl/$fileName"
@@ -171,20 +172,18 @@ fun main() {
                                     }
                                     "mind" -> {
                                         if (file.length() > 100) {
-                                           println("Backend: SUCCESS - Recognized valid 'mind' part (${file.length()} bytes).")
                                            customMindFile = file
-                                        } else {
-                                           println("Backend: WARNING - 'mind' part is too small (${file.length()} bytes).")
                                         }
                                     }
                                 }
                             }
-                            else -> {
-                                println("Backend: [Other] Unknown part type for '$pName'")
-                            }
+                            else -> {}
                         }
                         part.dispose()
                     }
+
+                    // Final ID check
+                    if (targetId.isEmpty()) targetId = UUID.randomUUID().toString()
 
                     val isVideo = isVideoValue ?: false
                     

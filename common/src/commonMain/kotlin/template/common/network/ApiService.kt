@@ -109,7 +109,8 @@ class ApiService(private val client: HttpClient) {
                 setBody(MultiPartFormDataContent(
                     formData {
                         // 1. Metadata first (Crucial for Ktor server side)
-                        if (targetId != null) {
+                        if (!targetId.isNullOrBlank()) {
+                            println("ApiService: Sending ID for update: $targetId")
                             append("id", targetId)
                         }
                         append("name", name ?: "Unnamed")

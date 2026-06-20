@@ -67,7 +67,9 @@ fun main() {
             fun loadRegistry(file: File = registryFile): MutableList<ManagedARItem> {
                 return if (file.exists()) {
                     try {
-                        jsonSerializer.decodeFromString<List<ManagedARItem>>(file.readText()).toMutableList()
+                        val items = jsonSerializer.decodeFromString<List<ManagedARItem>>(file.readText())
+                        // Deduplicate by ID to prevent ghost entries
+                        items.distinctBy { it.id.trim().lowercase() }.toMutableList()
                     } catch (e: Exception) {
                         mutableListOf()
                     }
@@ -126,69 +128,76 @@ fun main() {
                     
                     val baseUrl = "http://127.0.0.1:8888/uploads"
 
-                    var partCount = 0
-                    multipart.forEachPart { part ->
-                        partCount++
-                        val pName = part.name ?: "unnamed_$partCount"
-                        
-                        when (part) {
-                            is PartData.FormItem -> {
-                                when (pName.lowercase()) {
-                                    "id" -> targetId = part.value
-                                    "name" -> targetName = part.value
-                                    "isvideo" -> isVideoValue = part.value.toBoolean()
+                    // Collect parts first to ensure we have the ID before processing files
+                    val parts = mutableListOf<PartData>()
+                    multipart.forEachPart { parts.add(it) }
+
+                    // 1. Process FormItems to get ID and Name
+                    parts.filterIsInstance<PartData.FormItem>().forEach { part ->
+                        val fieldName = part.name?.lowercase() ?: ""
+                        when (fieldName) {
+                            "id" -> {
+                                val providedId = part.value.trim()
+                                if (providedId.isNotEmpty()) {
+                                    targetId = providedId
+                                    println("Backend: UPDATE FLOW - ID: '$targetId'")
+                                    // Pre-cleanup of old files for this specific ID
+                                    uploadDir.listFiles()?.filter { it.name.startsWith(targetId) }?.forEach { it.delete() }
                                 }
                             }
-                            is PartData.FileItem -> {
-                                // If targetId is still empty, generate a temporary one or wait for FormItem
-                                // To be safe, we'll assign a UUID if none was provided in earlier parts
-                                if (targetId.isEmpty()) targetId = UUID.randomUUID().toString()
-                                
-                                val originalName = part.originalFileName ?: "file"
-                                val partKey = pName.lowercase()
-                                
-                                val fileName = when {
-                                    partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
-                                    partKey == "content" && isVideoValue == false -> "${targetId}_content.glb"
-                                    partKey == "mind" || originalName.endsWith(".mind") -> "${targetId}_target.mind"
-                                    else -> "${targetId}_$originalName"
-                                }
-                                
-                                val file = File(uploadDir, fileName)
-                                part.streamProvider().use { input ->
-                                    file.outputStream().buffered().use { output ->
-                                        input.copyTo(output)
-                                    }
-                                }
-                                
-                                when (partKey) {
-                                    "image" -> targetImageUrl = "$baseUrl/$fileName"
-                                    "content" -> {
-                                        contentUrl = "$baseUrl/$fileName"
-                                        if (isVideoValue == null) {
-                                            isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
-                                                          part.contentType?.toString()?.contains("video") == true
-                                        }
-                                    }
-                                    "mind" -> {
-                                        if (file.length() > 100) {
-                                           customMindFile = file
-                                        }
-                                    }
-                                }
-                            }
-                            else -> {}
+                            "name" -> targetName = part.value
+                            "isvideo" -> isVideoValue = part.value.toBoolean()
                         }
-                        part.dispose()
                     }
 
-                    // Final ID check
-                    if (targetId.isEmpty()) targetId = UUID.randomUUID().toString()
+                    // Ensure targetId exists (only generate if not provided)
+                    if (targetId.isEmpty()) {
+                        targetId = UUID.randomUUID().toString()
+                        println("Backend: NEW TARGET FLOW - Generated ID: $targetId")
+                    }
+
+                    // 2. Process FileItems
+                    parts.filterIsInstance<PartData.FileItem>().forEach { part ->
+                        val pName = part.name ?: "file"
+                        val originalName = part.originalFileName ?: "file"
+                        val partKey = pName.lowercase()
+                        
+                        val fileName = when {
+                            partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
+                            partKey == "content" && isVideoValue == false -> "${targetId}_content.glb"
+                            partKey == "mind" || originalName.endsWith(".mind") -> "${targetId}_target.mind"
+                            else -> "${targetId}_$originalName"
+                        }
+                        
+                        val file = File(uploadDir, fileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        println("Backend: Saved '$pName' to ${file.name} (${file.length()} bytes)")
+                        
+                        when (partKey) {
+                            "image" -> targetImageUrl = "$baseUrl/$fileName"
+                            "content" -> {
+                                contentUrl = "$baseUrl/$fileName"
+                                if (isVideoValue == null) {
+                                    isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
+                                                  part.contentType?.toString()?.contains("video") == true
+                                }
+                            }
+                            "mind" -> {
+                                if (file.length() > 100) customMindFile = file
+                            }
+                        }
+                    }
+
+                    // Dispose all parts
+                    parts.forEach { it.dispose() }
 
                     val isVideo = isVideoValue ?: false
                     
                     val mindFile = if (customMindFile != null && customMindFile.exists() && customMindFile.length() > 500) {
-                        println("Backend: Finalizing with REAL mind file: ${customMindFile.name} (${customMindFile.length()} bytes)")
                         customMindFile
                     } else {
                         val errorMsg = if (customMindFile == null) "MIND part missing" else "MIND data empty (${customMindFile.length()} bytes)"
@@ -199,7 +208,14 @@ fun main() {
 
                     // Persist to registry
                     val items = loadRegistry()
-                    items.removeAll { it.id == targetId }
+                    val tid = targetId.trim().lowercase()
+                    val existingItem = items.find { it.id.trim().lowercase() == tid }
+                    val creationTime = existingItem?.createdAt ?: System.currentTimeMillis()
+                    
+                    if (existingItem != null) {
+                        println("Backend: Replacing existing item in registry: $targetId")
+                        items.removeAll { it.id.trim().lowercase() == tid }
+                    }
                     
                     val newItem = ManagedARItem(
                         id = targetId,
@@ -208,15 +224,15 @@ fun main() {
                         contentUrl = contentUrl,
                         mindUrl = mindUrl,
                         isVideo = isVideo,
-                        createdAt = System.currentTimeMillis(),
+                        createdAt = creationTime,
                         imageUploaded = targetImageUrl.isNotEmpty(),
                         contentUploaded = contentUrl.isNotEmpty(),
                         mindGenerated = true
                     )
                     items.add(newItem)
-                    saveRegistry(newItem.id.let { items }) // Save entire list
+                    saveRegistry(items)
 
-                    println("Backend: Request Complete. ID: $targetId, Mind: ${mindFile.name}\n")
+                    println("Backend: Request Complete. ID: $targetId (Updated: ${existingItem != null}), Mind: ${mindFile.name}\n")
                     call.respond(CompileResponse(targetId = targetId, mindUrl = mindUrl))
                 } catch (e: Exception) {
                     println("Backend: FATAL ERROR: ${e.message}")

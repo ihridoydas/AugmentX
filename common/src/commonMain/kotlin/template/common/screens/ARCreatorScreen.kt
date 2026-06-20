@@ -50,34 +50,26 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
         combinedItems.find { it.id == editId }
     }
 
-    var targetName by remember { mutableStateOf(existingItem?.name ?: "") }
-    val targetImageUrls = remember { mutableStateListOf<String>() }
-    var contentUrl by remember { mutableStateOf<String?>(existingItem?.contentUrl) }
-    var isVideo by remember { mutableStateOf(existingItem?.isVideo ?: false) }
+    // Initialize state from existing item
+    var targetName by remember(existingItem) { mutableStateOf(existingItem?.name ?: "") }
+    val targetImageUrls = remember(existingItem) { 
+        val list = mutableStateListOf<String>()
+        existingItem?.let { list.add(it.targetImageUrl) }
+        list
+    }
+    var contentUrl by remember(existingItem) { mutableStateOf(existingItem?.contentUrl) }
+    var isVideo by remember(existingItem) { mutableStateOf(existingItem?.isVideo ?: false) }
     var isCompiling by remember { mutableStateOf(false) }
     var showAR by remember { mutableStateOf(false) }
-    var targetId by remember { mutableStateOf(existingItem?.id) }
-    var compiledMindUrl by remember { mutableStateOf(existingItem?.mindUrl) }
+    var targetId by remember(existingItem) { mutableStateOf(editId ?: existingItem?.id) }
+    var compiledMindUrl by remember(existingItem) { mutableStateOf(existingItem?.mindUrl) }
 
     var exposure by remember { mutableStateOf(1.0f) }
     var scale by remember { mutableStateOf(1.0f) }
-    var liveText by remember { mutableStateOf("") }
+    var liveText by remember(targetName) { mutableStateOf(targetName) }
     var showControls by remember { mutableStateOf(true) }
 
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(existingItem) {
-        existingItem?.let {
-            targetName = it.name
-            targetImageUrls.clear()
-            targetImageUrls.add(it.targetImageUrl)
-            contentUrl = it.contentUrl
-            isVideo = it.isVideo
-            targetId = it.id
-            compiledMindUrl = it.mindUrl
-            liveText = it.name
-        }
-    }
 
     if (showAR && compiledMindUrl != null && contentUrl != null) {
         Box(modifier = Modifier.fillMaxSize()) {

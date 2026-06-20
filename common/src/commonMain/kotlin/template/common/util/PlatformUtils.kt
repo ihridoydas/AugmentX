@@ -38,4 +38,8 @@ expect object PlatformUtils {
     fun generateId(): String
 
     suspend fun readBytes(url: String): ByteArray
+
+    suspend fun compileMindAR(imageUrls: List<String>): String
+
+    fun downloadFile(url: String, fileName: String)
 }

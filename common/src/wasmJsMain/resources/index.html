@@ -117,8 +117,9 @@
         }
     </style>
 
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-compiler.prod.js"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 
@@ -142,7 +143,12 @@
         console.log("LOG: " + msg);
     }
 
-    screenLog("V68 - Interactive Web AR Final");
+    screenLog("V70 - Blob URL & Compiler Fixed");
+
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+        screenLog("RUNTIME ERROR: " + msg + " at " + lineNo + ":" + columnNo);
+        return false;
+    };
 
     function onBackPressed() {
         screenLog("Back pressed - Surgical Cleanup...");
@@ -271,8 +277,11 @@
         }
 
         const timestamp = Date.now();
-        const fullMindPath = (mindFile || "") + ( (mindFile && mindFile.includes('?')) ? '&' : '?') + "t=" + timestamp;
-        screenLog("Starting Session: " + (mindFile ? "Valid Mind" : "EMPTY MIND!"));
+        // CRITICAL: blob: URLs do not support query parameters like ?t=
+        const isBlob = mindFile && mindFile.startsWith('blob:');
+        const fullMindPath = isBlob ? mindFile : ((mindFile || "") + ( (mindFile && mindFile.includes('?')) ? '&' : '?') + "t=" + timestamp);
+
+        screenLog("Starting Session: " + (isBlob ? "Local Blob" : "Remote URL"));
 
         try {
             document.body.classList.add("ar-active");
@@ -385,6 +394,59 @@
                 });
             }
         }, 500);
+    };
+
+    window.compileMindAR = async function(imageUrls) {
+        screenLog("Starting Multi-Image Compilation...");
+
+        const loadImage = async (url) => {
+            const cleanUrl = url.split('#')[0];
+            const response = await fetch(cleanUrl);
+            const blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error("Image creation failed"));
+                img.src = URL.createObjectURL(blob);
+            });
+        };
+
+        try {
+            if (typeof MINDAR === 'undefined' || !MINDAR.IMAGE || !MINDAR.IMAGE.Compiler) {
+                screenLog("Waiting for Compiler API...");
+                await new Promise(r => setTimeout(r, 1500));
+            }
+
+            const compiler = new MINDAR.IMAGE.Compiler();
+
+            const images = [];
+            for (let i = 0; i < imageUrls.length; i++) {
+                screenLog("Loading Image " + (i+1) + "...");
+                const img = await loadImage(imageUrls[i]);
+                images.push(img);
+            }
+
+            screenLog("Images Ready. Compiling " + images.length + " targets...");
+
+            await compiler.compileImageTargets(images, (progress) => {
+                if (Math.round(progress) % 25 === 0) screenLog("Progress: " + Math.round(progress) + "%");
+            });
+
+            screenLog("Exporting binary data...");
+            const data = await compiler.exportData();
+
+            if (!data || data.length < 100) {
+                throw new Error("Generated .mind file is invalid.");
+            }
+
+            const blob = new Blob([data], {type: 'application/octet-stream'});
+            const blobUrl = URL.createObjectURL(blob);
+            screenLog("Compilation Success! Targets: " + images.length);
+            return blobUrl;
+        } catch (e) {
+            screenLog("COMPILER ERROR: " + e.message);
+            throw e;
+        }
     };
 
     document.addEventListener('click', (e) => {

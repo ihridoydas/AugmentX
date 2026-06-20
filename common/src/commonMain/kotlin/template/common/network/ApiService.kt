@@ -82,32 +82,19 @@ class ApiService(private val client: HttpClient) {
         imageBlobUrl: String, 
         contentBlobUrl: String, 
         name: String? = null,
-        isVideo: Boolean = false
+        isVideo: Boolean = false,
+        mindBlobUrl: String? = null
     ): CompileResponse {
         println("ApiService: Starting compilation for $name (isVideo=$isVideo)")
         
         // 1. Determine extensions
         val imageExt = if (imageBlobUrl.contains(".png", ignoreCase = true)) "png" else "jpg"
-        val contentExt = if (isVideo) "mp4" else {
-            if (contentBlobUrl.contains(".glb", ignoreCase = true)) "glb" else "glb" // Default to glb for models
-        }
+        val contentExt = if (isVideo) "mp4" else "glb"
 
-        // 2. Fetch local blobs using PlatformUtils
-        val imageBytes = try {
-            println("ApiService: Reading image bytes from $imageBlobUrl")
-            PlatformUtils.readBytes(imageBlobUrl)
-        } catch (e: Exception) {
-            println("ApiService: ERROR reading image: ${e.message}")
-            throw e
-        }
-
-        val contentBytes = try {
-            println("ApiService: Reading content bytes from $contentBlobUrl")
-            PlatformUtils.readBytes(contentBlobUrl)
-        } catch (e: Exception) {
-            println("ApiService: ERROR reading content: ${e.message}")
-            throw e
-        }
+        // 2. Fetch local blobs
+        val imageBytes = PlatformUtils.readBytes(imageBlobUrl)
+        val contentBytes = PlatformUtils.readBytes(contentBlobUrl)
+        val mindBytes = mindBlobUrl?.let { PlatformUtils.readBytes(it) }
 
         println("ApiService: Submitting multipart form to $baseUrl/compile")
         return try {
@@ -124,27 +111,26 @@ class ApiService(private val client: HttpClient) {
                             append(HttpHeaders.ContentType, if (isVideo) "video/mp4" else "application/octet-stream")
                             append(HttpHeaders.ContentDisposition, "filename=\"content.$contentExt\"")
                         })
+                        if (mindBytes != null) {
+                            append("mind", mindBytes, Headers.build {
+                                append(HttpHeaders.ContentType, "application/octet-stream")
+                                append(HttpHeaders.ContentDisposition, "filename=\"target.mind\"")
+                            })
+                        }
                     }
                 ))
             }.body()
-
-            println("ApiService: Successfully compiled! ID: ${response.targetId}")
             
-            // Refresh the list from the server to get the permanent URLs
             refreshTargets()
-            
             response
         } catch (e: Exception) {
-            println("ApiService: ERROR submitting form: ${e.message}")
-            if (e.toString().contains("TypeError") || e.toString().contains("Fail to fetch")) {
-                println("ApiService: DETECTED FETCH FAILURE. Likely CORS or Server Unreachable.")
-            }
+            println("ApiService: ERROR: ${e.message}")
             throw e
         }
     }
 
-    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean): CompileResponse {
-        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo)
+    suspend fun updateMindAR(targetId: String, imageBlobUrl: String, contentBlobUrl: String, name: String, isVideo: Boolean, mindBlobUrl: String? = null): CompileResponse {
+        val response = compileMindAR(imageBlobUrl, contentBlobUrl, name, isVideo, mindBlobUrl)
         deleteMindAR(targetId) 
         return response
     }

@@ -245,9 +245,19 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Current .mind File:", fontWeight = FontWeight.Bold)
-                        Text(compiledMindUrl!!, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Current .mind File:", fontWeight = FontWeight.Bold)
+                            Text(compiledMindUrl!!, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        }
+                        IconButton(onClick = { 
+                            PlatformUtils.downloadFile(compiledMindUrl!!, "${targetName.ifBlank { "target" }}.mind") 
+                        }) {
+                            Icon(Icons.Default.CloudUpload, "Download .mind file")
+                        }
                     }
                 }
             }
@@ -280,13 +290,18 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                             scope.launch {
                                 try {
                                     if (PlatformUtils.isWeb) {
+                                        // 1. Compile Locally in Browser to create real .mind file
+                                        val localMindUrl = PlatformUtils.compileMindAR(listOf(targetImageUrl!!))
+                                        
+                                        // 2. Register/Upload to Backend (passing the local .mind blob)
                                         val response = if (targetId == null) {
-                                            apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                            apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo, localMindUrl)
                                         } else {
-                                            apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
+                                            apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo, localMindUrl)
                                         }
+                                        
                                         targetId = response.targetId
-                                        compiledMindUrl = response.mindUrl
+                                        compiledMindUrl = response.mindUrl // Server URL
                                     } else {
                                         // Android Local Room Save
                                         val newItem = ManagedARItem(

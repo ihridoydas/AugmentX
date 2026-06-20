@@ -122,6 +122,7 @@ fun main() {
                     var targetImageUrl = ""
                     var contentUrl = ""
                     var isVideoValue: Boolean? = null
+                    var customMindFile: File? = null
                     
                     val baseUrl = "http://127.0.0.1:8888/uploads"
 
@@ -139,6 +140,8 @@ fun main() {
                                     "${targetId}_content.mp4"
                                 } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
                                     "${targetId}_content.glb"
+                                } else if (part.name == "mind") {
+                                    "${targetId}.mind"
                                 } else {
                                     "${targetId}_$originalName"
                                 }
@@ -157,6 +160,8 @@ fun main() {
                                         isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
                                                       part.contentType?.toString()?.contains("video") == true
                                     }
+                                } else if (part.name == "mind") {
+                                    customMindFile = file
                                 }
                                 println("Backend: Saved file $fileName")
                             }
@@ -167,9 +172,10 @@ fun main() {
 
                     val isVideo = isVideoValue ?: false
                     val mindFileName = "${targetId}.mind"
-                    val mindFile = File(uploadDir, mindFileName)
-                    mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
-                    val mindUrl = "$baseUrl/$mindFileName"
+                    val mindFile = customMindFile ?: File(uploadDir, mindFileName).apply {
+                        if (!exists()) writeText("MIND_FILE_CONTENT_FOR_$targetId")
+                    }
+                    val mindUrl = "$baseUrl/${mindFile.name}"
 
                     // Persist to registry
                     val items = loadRegistry()

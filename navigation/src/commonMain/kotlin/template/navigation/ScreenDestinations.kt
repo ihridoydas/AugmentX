@@ -57,4 +57,7 @@ sealed interface ScreenDestinations : NavKey {
         val videoUrl: String? = null,
         val isVideo: Boolean = false
     ) : ScreenDestinations
+
+    @Serializable
+    data object ARCompiler : ScreenDestinations
 }

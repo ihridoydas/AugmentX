@@ -85,24 +85,33 @@ class ApiService(private val client: HttpClient) {
         isVideo: Boolean = false,
         mindBlobUrl: String? = null
     ): CompileResponse {
-        println("ApiService: Starting compilation for $name (isVideo=$isVideo)")
+        println("ApiService: Starting upload prep for $name")
         
-        // 1. Determine extensions
-        val imageExt = if (imageBlobUrl.contains(".png", ignoreCase = true)) "png" else "jpg"
-        val contentExt = if (isVideo) "mp4" else "glb"
-
-        // 2. Fetch local blobs
+        // 1. Fetch all binary data first
         val imageBytes = PlatformUtils.readBytes(imageBlobUrl)
         val contentBytes = PlatformUtils.readBytes(contentBlobUrl)
         val mindBytes = mindBlobUrl?.let { PlatformUtils.readBytes(it) }
+        
+        println("ApiService: Payloads - Image: ${imageBytes.size}, Content: ${contentBytes.size}, Mind: ${mindBytes?.size ?: 0}")
 
-        println("ApiService: Submitting multipart form to $baseUrl/compile")
+        if (imageBytes.isEmpty() || contentBytes.isEmpty()) {
+            throw Exception("Required assets (image/content) are empty.")
+        }
+
+        // 2. Determine extensions
+        val imageExt = if (imageBlobUrl.contains(".png", ignoreCase = true)) "png" else "jpg"
+        val contentExt = if (isVideo) "mp4" else "glb"
+
+        println("ApiService: Posting to $baseUrl/compile")
         return try {
             val response: CompileResponse = client.post("$baseUrl/compile") {
                 setBody(MultiPartFormDataContent(
                     formData {
+                        // 1. Metadata first (Crucial for Ktor server side)
                         append("name", name ?: "Unnamed")
                         append("isVideo", isVideo.toString())
+                        
+                        // 2. Binary blobs with explicit content types
                         append("image", imageBytes, Headers.build {
                             append(HttpHeaders.ContentType, "image/$imageExt")
                             append(HttpHeaders.ContentDisposition, "filename=\"target.$imageExt\"")
@@ -111,7 +120,9 @@ class ApiService(private val client: HttpClient) {
                             append(HttpHeaders.ContentType, if (isVideo) "video/mp4" else "application/octet-stream")
                             append(HttpHeaders.ContentDisposition, "filename=\"content.$contentExt\"")
                         })
-                        if (mindBytes != null) {
+                        
+                        if (mindBytes != null && mindBytes.isNotEmpty()) {
+                            println("ApiService: Sending valid MIND part (${mindBytes.size} bytes)")
                             append("mind", mindBytes, Headers.build {
                                 append(HttpHeaders.ContentType, "application/octet-stream")
                                 append(HttpHeaders.ContentDisposition, "filename=\"target.mind\"")
@@ -124,7 +135,7 @@ class ApiService(private val client: HttpClient) {
             refreshTargets()
             response
         } catch (e: Exception) {
-            println("ApiService: ERROR: ${e.message}")
+            println("ApiService: NETWORK ERROR: ${e.message}")
             throw e
         }
     }

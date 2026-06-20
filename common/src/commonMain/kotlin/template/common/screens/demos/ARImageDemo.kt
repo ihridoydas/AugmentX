@@ -31,9 +31,12 @@ fun ARImageDemo(onBack: () -> Unit) {
     val managedItems by apiService.managedItems.collectAsState()
     val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
     
-    // Find the first available item that is NOT a video
+    // Find the latest available item that is NOT a video
     val sampleItem = remember(managedItems, localItems) {
-        (managedItems + localItems).firstOrNull { !it.isVideo }
+        (managedItems + localItems)
+            .filter { !it.isVideo }
+            .sortedByDescending { it.createdAt }
+            .firstOrNull()
     }
 
     var showGuide by remember { mutableStateOf(false) }

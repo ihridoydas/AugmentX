@@ -114,7 +114,7 @@ fun main() {
             }
 
             post("/compile") {
-                println("Backend: POST /compile - Received request")
+                println("\nBackend: POST /compile - NEW REQUEST")
                 try {
                     val multipart = call.receiveMultipart()
                     var targetName = "Unknown"
@@ -126,24 +126,30 @@ fun main() {
                     
                     val baseUrl = "http://127.0.0.1:8888/uploads"
 
+                    var partCount = 0
                     multipart.forEachPart { part ->
+                        partCount++
+                        val pName = part.name ?: "unnamed_$partCount"
+                        println("Backend: [Part $partCount] Received: '$pName' (Type: ${part.javaClass.simpleName})")
+                        
                         when (part) {
                             is PartData.FormItem -> {
-                                when (part.name) {
+                                println("Backend: [FormItem] '$pName' = '${part.value}'")
+                                when (pName.lowercase()) {
                                     "name" -> targetName = part.value
-                                    "isVideo" -> isVideoValue = part.value.toBoolean()
+                                    "isvideo" -> isVideoValue = part.value.toBoolean()
                                 }
                             }
                             is PartData.FileItem -> {
                                 val originalName = part.originalFileName ?: "file"
-                                val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
-                                    "${targetId}_content.mp4"
-                                } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
-                                    "${targetId}_content.glb"
-                                } else if (part.name == "mind") {
-                                    "${targetId}.mind"
-                                } else {
-                                    "${targetId}_$originalName"
+                                val partKey = pName.lowercase()
+                                println("Backend: [FileItem] '$pName' (Original: $originalName, Type: ${part.contentType})")
+                                
+                                val fileName = when {
+                                    partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
+                                    partKey == "content" && isVideoValue == false -> "${targetId}_content.glb"
+                                    partKey == "mind" -> "${targetId}.mind"
+                                    else -> "${targetId}_$originalName"
                                 }
                                 
                                 val file = File(uploadDir, fileName)
@@ -152,33 +158,50 @@ fun main() {
                                         input.copyTo(output)
                                     }
                                 }
-                                if (part.name == "image") {
-                                    targetImageUrl = "$baseUrl/$fileName"
-                                } else if (part.name == "content") {
-                                    contentUrl = "$baseUrl/$fileName"
-                                    if (isVideoValue == null) {
-                                        isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
-                                                      part.contentType?.toString()?.contains("video") == true
+                                println("Backend: Saved '$pName' to ${file.name} (${file.length()} bytes)")
+                                
+                                when (partKey) {
+                                    "image" -> targetImageUrl = "$baseUrl/$fileName"
+                                    "content" -> {
+                                        contentUrl = "$baseUrl/$fileName"
+                                        if (isVideoValue == null) {
+                                            isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
+                                                          part.contentType?.toString()?.contains("video") == true
+                                        }
                                     }
-                                } else if (part.name == "mind") {
-                                    customMindFile = file
+                                    "mind" -> {
+                                        if (file.length() > 100) {
+                                           println("Backend: SUCCESS - Recognized valid 'mind' part.")
+                                           customMindFile = file
+                                        } else {
+                                           println("Backend: WARNING - 'mind' part is too small (${file.length()} bytes).")
+                                        }
+                                    }
                                 }
-                                println("Backend: Saved file $fileName")
                             }
-                            else -> {}
+                            else -> {
+                                println("Backend: [Other] Unknown part type for '$pName'")
+                            }
                         }
                         part.dispose()
                     }
 
                     val isVideo = isVideoValue ?: false
-                    val mindFileName = "${targetId}.mind"
-                    val mindFile = customMindFile ?: File(uploadDir, mindFileName).apply {
-                        if (!exists()) writeText("MIND_FILE_CONTENT_FOR_$targetId")
+                    
+                    val mindFile = if (customMindFile != null && customMindFile.exists() && customMindFile.length() > 500) {
+                        println("Backend: Finalizing with REAL mind file: ${customMindFile.name} (${customMindFile.length()} bytes)")
+                        customMindFile
+                    } else {
+                        val errorMsg = if (customMindFile == null) "MIND part missing" else "MIND data empty (${customMindFile.length()} bytes)"
+                        println("Backend: CRITICAL - $errorMsg. Terminating request.")
+                        throw Exception(errorMsg)
                     }
                     val mindUrl = "$baseUrl/${mindFile.name}"
 
                     // Persist to registry
                     val items = loadRegistry()
+                    items.removeAll { it.id == targetId }
+                    
                     val newItem = ManagedARItem(
                         id = targetId,
                         name = targetName,
@@ -189,14 +212,16 @@ fun main() {
                         createdAt = System.currentTimeMillis(),
                         imageUploaded = targetImageUrl.isNotEmpty(),
                         contentUploaded = contentUrl.isNotEmpty(),
-                        mindGenerated = mindUrl.isNotEmpty()
+                        mindGenerated = true
                     )
                     items.add(newItem)
-                    saveRegistry(items)
+                    saveRegistry(newItem.id.let { items }) // Save entire list
 
+                    println("Backend: Request Complete. ID: $targetId, Mind: ${mindFile.name}\n")
                     call.respond(CompileResponse(targetId = targetId, mindUrl = mindUrl))
                 } catch (e: Exception) {
-                    println("Backend: ERROR processing /compile: ${e.message}")
+                    println("Backend: FATAL ERROR: ${e.message}")
+                    e.printStackTrace()
                     call.respond(HttpStatusCode.InternalServerError, e.message ?: "Unknown Error")
                 }
             }

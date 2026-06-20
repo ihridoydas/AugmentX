@@ -153,7 +153,9 @@ fun ARCompilerScreen(onBack: () -> Unit) {
                         scope.launch {
                             try {
                                 compiledMindUrl = PlatformUtils.compileMindAR(imageUrls.toList())
-                                snackbarHostState.showSnackbar("Compilation Finished!")
+                                // Auto-download on success
+                                PlatformUtils.downloadFile(compiledMindUrl!!, "targets.mind")
+                                snackbarHostState.showSnackbar("Compilation Finished & Downloaded!")
                             } catch (e: Exception) {
                                 snackbarHostState.showSnackbar("Error: ${e.message}")
                             } finally {

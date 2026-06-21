@@ -1,57 +1,61 @@
-# KmpTemplate
+# AugmentX
 
-Kickstart your **Kotlin Multiplatform (KMP)** development with this KmpTemplate. Designed by [Hridoy Chandra Das](https://github.com/ihridoydas), it provides a robust starting point for Android, iOS, Desktop, and Web (Wasm) applications.
+**AugmentX** is a powerful **Kotlin Multiplatform (KMP)** Augmented Reality framework and template. It provides a robust starting point for building cross-platform AR applications for Android and iOS, complete with a dedicated Ktor backend for asset management.
 
-## Why KmpTemplate?
+## Key Features
 
-- **Multiplatform by Default:** Shared logic and UI (Compose Multiplatform) for Android, iOS, Desktop, and Web.
-- **Full Testing Suite:** Logic and UI tests run cross-platform (Android via Robolectric, iOS, JVM, Web). See [Testing Strategy](documentation/Testing.md).
-- **Opinionated Tooling:** Configured dependency management, git hooks, code formatting, and static analysis for enhanced development.
-- **Smart Setup:** A custom script to rename your project, package IDs, and toggle essential KMP libraries in seconds.
+### 🚀 Cross-Platform AR Engine
+- **Unified SceneView**: A powerful `@Composable` AR view that works seamlessly across Android and iOS.
+- **Multiple AR Modes**: Support for Plane Detection, Image Tracking, Face Tracking, Depth, and Instant Placement.
+- **Compose Multiplatform UI**: Shared UI logic for AR overlays and controls.
+
+### 📦 Content & Rendering
+- **3D Model Support**: Render complex GLB/GLTF models with ease.
+- **AR Video Playback**: Integrated MP4 video support within AR scenes.
+- **Advanced Environment FX**: Dynamic control over Fog density, Skybox/IBL, and Exposure.
+- **Billboard Components**: UI and 3D elements that intelligently face the user.
+- **Interactive Gestures**: Built-in support for manipulating AR objects.
+
+### 🖥️ Dedicated Backend (`:backend`)
+- **Ktor-Powered**: High-performance backend built with Ktor and Netty.
+- **AR Target Registry**: Management system for tracking images and their associated 3D/video content.
+- **Asset Processing**: Endpoints for compiling and serving AR assets and `.mind` tracking files.
+- **Persistence**: File-based registry system for easy deployment and testing.
+
+### 🏗️ Robust Architecture
+- **Clean Project Structure**: Modularized into `:app`, `:backend`, `:common`, `:navigation`, `:storage`, and `:theme`.
+- **Full Testing Suite**: Logic and UI tests run cross-platform. See [Testing Strategy](documentation/Testing.md).
+- **Modern Tooling**: Configured with Koin, Ktor, Room KMP, and Compose Multiplatform.
+- **CI/CD Ready**: GitHub Actions and Danger integration for automated quality checks.
 
 ## Getting Started
 
-1. Click **"Use this template"** to create a repository under your account.
-2. Open `buildscripts/setup.gradle` and configure your project details:
-    ```groovy
-    def renameConfig = [
-        newTemplateName          : "MyAwesomeApp",    // Your project name
-        newTemplateAppId         : "com.example.app", // Your package ID
-        newMaterialThemeName     : "AppTheme",        // Your Material Theme name
+1. **Backend Setup**:
+   - Navigate to the `backend` directory.
+   - Run the Ktor server: `./gradlew :backend:run`.
+   - The server defaults to `http://localhost:8888`.
 
-        // Toggle KMP libraries
-        useKoin                  : true,
-        useKtor                  : true,
-        useRoomKmp               : true,
-        useComposeMultiplatform  : true,
-    ]
-    ```
-3. Run the setup command in your terminal:
-    ```bash
-    ./gradlew renameTemplate
-    ```
-4. **Restart Android Studio**, re-sync Gradle, and you are ready to build!
+2. **App Configuration**:
+   - Open `buildscripts/setup.gradle` to configure your project details.
+   - Run the setup command: `./gradlew renameTemplate`.
 
-- Japanese [Readme here](README_jp.md) 🇯🇵.
-- Bangla [Readme here](README_bd.md) 🇧🇩.
-- Hindi [Readme here](README_in.md) 🇮🇳.
+3. **Build & Run**:
+   - Launch the `:app` on Android or use the shared `:common` module for iOS.
 
 ## What's Included
 
 Explore shared logic, components, and documentation:
 
-- [Essential KMP Tasks](/documentation/EssentialTasks.md) - **Start here** for platform-specific commands.
-- [Ktlint](/documentation/StaticAnalysis.md) for code formatting.
-- [Detekt](/documentation/StaticAnalysis.md) for code smells.
-- [Git Hooks](/documentation/GitHooks.md) for pre-commit checks.
-- [GitHub Actions](/documentation/GitHubActions.md) for CI/CD.
-- [Dokka](/documentation/StaticAnalysis.md) for API documentation.
-- [Spotless](https://github.com/diffplug/spotless) & [sortDependencies](https://github.com/square/gradle-dependencies-sorter).
+- [Essential KMP Tasks](/documentation/EssentialTasks.md) - Platform-specific commands.
+- [Demos](/common/src/commonMain/kotlin/template/common/screens/demos/) - Pre-built examples for Fog, Gestures, Billboards, and more.
+- [Static Analysis](/documentation/StaticAnalysis.md) - Ktlint, Detekt, and Dokka configuration.
+- [Git Hooks](/documentation/GitHooks.md) - Pre-commit checks.
 
 ## Project Structure
 
 - `:app`: Android-specific application module.
-- `:common`: The heart of your project. Contains shared UI (Compose) and business logic.
+- `:backend`: Ktor server for managing AR content and registries.
+- `:common`: Shared AR engine (`SceneView`), UI components, and business logic.
 - `:navigation`: Shared navigation configuration.
 - `:storage`: Shared local data handling (DataStore/Room).
 - `:theme`: Shared Material 3 design system.

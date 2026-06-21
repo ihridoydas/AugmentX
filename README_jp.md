@@ -1,51 +1,61 @@
-# KmpTemplate
+# AugmentX
 
-このGitHubリポジトリを使用して、**Kotlin Multiplatform (KMP)** 開発をスタートしましょう。[Hridoy Chandra Das](https://github.com/ihridoydas)によって設計され、Android、iOS、デスクトップ、およびWeb (Wasm) アプリケーションのための堅牢な出発点を提供します。
+**AugmentX** は、強力な **Kotlin Multiplatform (KMP)** 拡張現実 (AR) フレームワークおよびテンプレートです。Android および iOS 向けのクロスプラットフォーム AR アプリケーションを構築するための堅牢な出発点を提供し、アセット管理用の専用 Ktor バックエンドも備えています。
 
-## なぜ KmpTemplate？
+## 主な機能
 
-- **デフォルトでマルチプラットフォーム:** Android、iOS、デスクトップ、およびWeb向けの共有ロジックとUI (Compose Multiplatform)。
-- **意見を述べるツール:** 設定済みの依存関係管理、gitフック、コードフォーマッティング、静的解析など、開発を向上させるためのツールが含まれています。
-- **スマートセットアップ:** プロジェクト名、パッケージIDを変更し、主要なKMPライブラリを数秒で切り替えるためのカスタムスクリプト。
+### 🚀 クロスプラットフォーム AR エンジン
+- **Unified SceneView**: Android と iOS でシームレスに動作する強力な `@Composable` AR ビュー。
+- **複数の AR モード**: 平面検知、画像トラッキング、フェイストラッキング、デプス、およびインスタント配置をサポート。
+- **Compose Multiplatform UI**: AR オーバーレイおよびコントロール用の共有 UI ロジック。
+
+### 📦 コンテンツとレンダリング
+- **3D モデルのサポート**: 複雑な GLB/GLTF モデルを簡単にレンダリング。
+- **AR ビデオ再生**: AR シーン内での統合された MP4 ビデオサポート。
+- **高度な環境 FX**: フォグの密度、スカイボックス/IBL、および露出を動的に制御。
+- **ビルボードコンポーネント**: ユーザーの方向をインテリジェントにむく UI および 3D 要素。
+- **インタラクティブなジェスチャー**: AR オブジェクトを操作するための組み込みサポート。
+
+### 🖥️ 専用バックエンド (`:backend`)
+- **Ktor 駆動**: Ktor と Netty で構築された高性能バックエンド。
+- **AR ターゲットレジストリ**: トラッキング画像とそれに関連付けられた 3D/ビデオコンテンツの管理システム。
+- **アセット処理**: AR アセットおよび `.mind` トラッキングファイルを提供するためのエンドポイント。
+- **永続化**: 展開とテストが容易なファイルベースのレジストリシステム。
+
+### 🏗️ 堅牢なアーキテクチャ
+- **クリーンなプロジェクト構造**: `:app`、`:backend`、`:common`、`:navigation`、`:storage`、`:theme` にモジュール化。
+- **フルテストスイート**: クロスプラットフォームで動作するロジックおよび UI テスト。[テスト戦略](documentation/Testing.md)を参照。
+- **モダンなツール**: Koin、Ktor、Room KMP、および Compose Multiplatform で構成。
+- **CI/CD 対応**: 自動品質チェックのための GitHub Actions と Danger の統合。
 
 ## スタートガイド
 
-1. **"このテンプレートを使用"**をクリックして、アカウントにリポジトリを作成します。
-2. `buildscripts/setup.gradle` を開き、プロジェクトの詳細を設定します：
-    ```groovy
-    def renameConfig = [
-        newTemplateName          : "MyAwesomeApp",    // プロジェクト名
-        newTemplateAppId         : "com.example.app", // パッケージID
-        newMaterialThemeName     : "AppTheme",        // Material Theme名
+1. **バックエンドのセットアップ**:
+   - `backend` ディレクトリに移動します。
+   - Ktor サーバーを実行します: `./gradlew :backend:run`
+   - サーバーはデフォルトで `http://localhost:8888` で動作します。
 
-        // KMPライブラリの切り替え
-        useKoin                  : true,
-        useKtor                  : true,
-        useRoomKmp               : true,
-        useComposeMultiplatform  : true,
-    ]
-    ```
-3. ターミナルでセットアップコマンドを実行します：
-    ```bash
-    ./gradlew renameTemplate
-    ```
-4. **Android Studioを再起動**し、Gradleを再同期すれば、ビルドの準備は完了です！
+2. **アプリの設定**:
+   - `buildscripts/setup.gradle` を開き、プロジェクトの詳細を設定します。
+   - セットアップコマンドを実行します: `./gradlew renameTemplate`
+
+3. **ビルドと実行**:
+   - Android で `:app` を起動するか、iOS 用に共有の `:common` モジュールを使用します。
 
 ## 含まれるもの
 
 共有ロジック、コンポーネント、およびドキュメントを確認してください：
 
-- [Essential KMP Tasks](/documentation/EssentialTasks.md) - プラットフォーム固有のコマンドについては、**ここから始めてください**。
-- [Ktlint](/documentation/StaticAnalysis.md) コードフォーマット用。
-- [Detekt](/documentation/StaticAnalysis.md) コードスメル検出用。
-- [Git Hooks](/documentation/GitHooks.md) プリコミットチェック用。
-- [GitHub Actions](/documentation/GitHubActions.md) CI/CD用。
-- [Dokka](/documentation/StaticAnalysis.md) APIドキュメント用。
+- [Essential KMP Tasks](/documentation/EssentialTasks.md) - プラットフォーム固有のコマンド。
+- [Demos](/common/src/commonMain/kotlin/template/common/screens/demos/) - フォグ、ジェスチャー、ビルボードなどのビルド済みサンプル。
+- [Static Analysis](/documentation/StaticAnalysis.md) - Ktlint, Detekt, および Dokka の設定。
+- [Git Hooks](/documentation/GitHooks.md) - プリコミットチェック。
 
 ## プロジェクト構造
 
-- `:app`: Android固有のアプリケーションモジュール。
-- `:common`: プロジェクトの心臓部。共有UI (Compose) とビジネスロジックが含まれます。
+- `:app`: Android 固有のアプリケーションモジュール。
+- `:backend`: AR コンテンツとレジストリを管理するための Ktor サーバー。
+- `:common`: 共有 AR エンジン (`SceneView`)、UI コンポーネント、およびビジネスロジック。
 - `:navigation`: 共有ナビゲーション設定。
 - `:storage`: 共有ローカルデータ処理 (DataStore/Room)。
 - `:theme`: 共有 Material 3 デザインシステム。

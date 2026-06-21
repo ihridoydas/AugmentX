@@ -1,50 +1,61 @@
-# KmpTemplate
+# AugmentX
 
-अपने **Kotlin Multiplatform (KMP)** विकास की शुरुआत इस GitHub रिपॉजिटरी के साथ करें। [हृदय चंद्र दास](https://github.com/ihridoydas) द्वारा डिज़ाइन किया गया, यह Android, iOS, Desktop और Web (Wasm) अनुप्रयोगों के लिए एक मजबूत आधार प्रदान करता है।
+**AugmentX** एक शक्तिशाली **Kotlin Multiplatform (KMP)** ऑगमेंटेड रियलिटी (AR) फ्रेमवर्क और टेम्पलेट है। यह Android और iOS के लिए क्रॉस-प्लेटफॉर्म AR एप्लिकेशन बनाने के लिए एक मजबूत आधार प्रदान करता है, जिसमें एसेट मैनेजमेंट के लिए एक समर्पित Ktor बैकएंड भी शामिल है।
 
-## KmpTemplate क्यों?
+## मुख्य विशेषताएं
 
-- **डिफ़ॉल्ट रूप से मल्टीप्लेटफ़ॉर्म:** Android, iOS, Desktop और Web के लिए साझा लॉजिक और UI (Compose Multiplatform)।
-- **स्मार्ट सेटअप:** अपने प्रोजेक्ट का नाम, पैकेज आईडी बदलने और आवश्यक KMP लाइब्रेरीज़ को कुछ ही सेकंड में टॉगल करने के लिए एक कस्टम स्क्रिप्ट।
+### 🚀 क्रॉस-प्लेटफॉर्म AR इंजन
+- **Unified SceneView**: एक शक्तिशाली `@Composable` AR व्यू जो Android और iOS दोनों पर सहजता से काम करता है।
+- **एकाधिक AR मोड**: प्लेन डिटेक्शन, इमेज ट्रैकिंग, फेस ट्रैकिंग, डेप्थ और इंस्टेंट प्लेसमेंट का समर्थन।
+- **Compose Multiplatform UI**: AR ओवरले और कंट्रोल के लिए साझा UI लॉजिक।
+
+### 📦 कंटेंट और रेंडरिंग
+- **3D मॉडल सपोर्ट**: जटिल GLB/GLTF मॉडल को आसानी से रेंडर करें।
+- **AR वीडियो प्लेबैक**: AR सीन के भीतर एकीकृत MP4 वीडियो सपोर्ट।
+- **उन्नत एनवायरनमेंट FX**: फॉग डेंसिटी, स्काईबॉक्स/IBL और एक्सपोजर पर डायनेमिक नियंत्रण।
+- **बिलबोर्ड कंपोनेंट**: UI और 3D तत्व जो समझदारी से उपयोगकर्ता की ओर उन्मुख होते हैं।
+- **इंटरएक्टिव जेस्चर**: AR ऑब्जेक्ट्स के साथ छेड़छाड़ करने के लिए इन-बिल्ट सपोर्ट।
+
+### 🖥️ समर्पित बैकएंड (`:backend`)
+- **Ktor-पावर्ड**: Ktor और Netty के साथ निर्मित उच्च-प्रदर्शन बैकएंड।
+- **AR टार्गेट रजिस्ट्री**: इमेज को ट्रैक करने और उनके संबंधित 3D/वीडियो कंटेंट को प्रबंधित करने के लिए सिस्टम।
+- **एसेट प्रोसेसिंग**: AR एसेट और `.mind` ट्रैकिंग फाइलों को परोसने के लिए एंडपॉइंट्स।
+- **पर्सिस्टेंस**: आसान परिनियोजन (deployment) और परीक्षण के लिए फाइल-आधारित रजिस्ट्री सिस्टम।
+
+### 🏗️ मजबूत आर्किटेक्चर
+- **स्वच्छ प्रोजेक्ट संरचना**: `:app`, `:backend`, `:common`, `:navigation`, `:storage`, और `:theme` में विभाजित।
+- **पूर्ण परीक्षण सूट**: क्रॉस-प्लेटफॉर्म लॉजिक और UI परीक्षण। देखें [परीक्षण रणनीति](documentation/Testing.md)।
+- **आधुनिक टूलिंग**: Koin, Ktor, Room KMP, और Compose Multiplatform के साथ कॉन्फ़िगर किया गया।
+- **CI/CD तैयार**: स्वचालित गुणवत्ता जांच के लिए GitHub Actions और Danger एकीकरण।
 
 ## शुरुआत कैसे करें
 
-1. अपने खाते में एक रिपॉजिटरी बनाने के लिए **"Use this template"** पर क्लिक करें।
-2. `buildscripts/setup.gradle` खोलें और अपने प्रोजेक्ट का विवरण कॉन्फ़िगर करें:
-    ```groovy
-    def renameConfig = [
-        newTemplateName          : "MyAwesomeApp",    // आपका प्रोजेक्ट नाम
-        newTemplateAppId         : "com.example.app", // आपकी पैकेज आईडी
-        newMaterialThemeName     : "AppTheme",        // आपका मटेरियल थीम नाम
+1. **बैकएंड सेटअप**:
+   - `backend` डायरेक्टरी में जाएं।
+   - Ktor सर्वर चलाएँ: `./gradlew :backend:run` ।
+   - सर्वर डिफ़ॉल्ट रूप से `http://localhost:8888` पर चलता है।
 
-        // KMP लाइब्रेरीज़ टॉगल करें
-        useKoin                  : true,
-        useKtor                  : true,
-        useRoomKmp               : true,
-        useComposeMultiplatform  : true,
-    ]
-    ```
-3. अपने टर्मिनल में सेटअप कमांड चलाएँ:
-    ```bash
-    ./gradlew renameTemplate
-    ```
-4. **Android Studio को पुनरारंभ करें**, Gradle को सिंक करें, और आप बिल्ड के लिए तैयार हैं!
+2. **ऐप कॉन्फ़िगरेशन**:
+   - अपने प्रोजेक्ट विवरण को कॉन्फ़िगर करने के लिए `buildscripts/setup.gradle` खोलें।
+   - सेटअप कमांड चलाएँ: `./gradlew renameTemplate` ।
+
+3. **बिल्ड और रन**:
+   - Android पर `:app` लॉन्च करें या iOS के लिए साझा `:common` मॉड्यूल का उपयोग करें।
 
 ## क्या शामिल है
 
 साझा लॉजिक, कंपोनेंट्स और दस्तावेज़ों का अन्वेषण करें:
 
-- [Essential KMP Tasks](/documentation/EssentialTasks.md) - प्लेटफॉर्म-विशिष्ट कमांड के लिए **यहाँ से शुरू करें**।
-- [Ktlint](/documentation/StaticAnalysis.md) कोड स्वरूपण के लिए।
-- [Detekt](/documentation/StaticAnalysis.md) कोड स्मेल्स के लिए।
-- [Git Hooks](/documentation/GitHooks.md) प्री-कमिट चेक के लिए।
-- [GitHub Actions](/documentation/GitHubActions.md) CI/CD के लिए।
-- [Dokka](/documentation/StaticAnalysis.md) API दस्तावेज़ीकरण के लिए।
+- [Essential KMP Tasks](/documentation/EssentialTasks.md) - प्लेटफॉर्म-विशिष्ट कमांड।
+- [Demos](/common/src/commonMain/kotlin/template/common/screens/demos/) - फॉग, जेस्चर, बिलबोर्ड और अन्य के लिए प्री-बिल्ट उदाहरण।
+- [Static Analysis](/documentation/StaticAnalysis.md) - Ktlint, Detekt, और Dokka कॉन्फ़िगरेशन।
+- [Git Hooks](/documentation/GitHooks.md) - प्री-कमिट चेक।
 
 ## प्रोजेक्ट संरचना
 
 - `:app`: Android-विशिष्ट एप्लिकेशन मॉड्यूल।
-- `:common`: आपके प्रोजेक्ट का हृदय। साझा UI (Compose) और व्यावसायिक लॉजिक शामिल है।
+- `:backend`: AR कंटेंट और रजिस्ट्री प्रबंधन के लिए Ktor सर्वर।
+- `:common`: साझा AR इंजन (`SceneView`), UI कंपोनेंट और व्यावसायिक लॉजिक।
 - `:navigation`: साझा नेविगेशन कॉन्फ़िगरेशन।
 - `:storage`: साझा स्थानीय डेटा हैंडलिंग (DataStore/Room)।
 - `:theme`: साझा Material 3 डिज़ाइन सिस्टम।

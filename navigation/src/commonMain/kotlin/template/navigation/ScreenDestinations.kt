@@ -49,4 +49,12 @@ sealed interface ScreenDestinations : NavKey {
 
     @Serializable
     data object ARManageAndroid : ScreenDestinations
+
+    @Serializable
+    data class ARViewer(
+        val trackingImage: String,
+        val modelUrl: String? = null,
+        val videoUrl: String? = null,
+        val isVideo: Boolean = false
+    ) : ScreenDestinations
 }

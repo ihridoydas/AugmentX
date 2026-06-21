@@ -124,7 +124,15 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                         ARManageScreen(
                             onBack = { navigator.goBack() },
                             onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreator(item.id)) },
-                            onAdd = { navigator.navigate(ScreenDestinations.ARCreator()) }
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreator()) },
+                            onView = { item -> 
+                                navigator.navigate(ScreenDestinations.ARViewer(
+                                    trackingImage = if (template.common.util.PlatformUtils.isWeb) item.mindUrl else item.targetImageUrl,
+                                    modelUrl = if (!item.isVideo) item.contentUrl else null,
+                                    videoUrl = if (item.isVideo) item.contentUrl else null,
+                                    isVideo = item.isVideo
+                                ))
+                            }
                         )
                     }
 
@@ -132,7 +140,25 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                         ARManageScreen(
                             onBack = { navigator.goBack() },
                             onEdit = { item -> navigator.navigate(ScreenDestinations.ARCreatorAndroid(item.id)) },
-                            onAdd = { navigator.navigate(ScreenDestinations.ARCreatorAndroid()) }
+                            onAdd = { navigator.navigate(ScreenDestinations.ARCreatorAndroid()) },
+                            onView = { item -> 
+                                navigator.navigate(ScreenDestinations.ARViewer(
+                                    trackingImage = item.targetImageUrl,
+                                    modelUrl = if (!item.isVideo) item.contentUrl else null,
+                                    videoUrl = if (item.isVideo) item.contentUrl else null,
+                                    isVideo = item.isVideo
+                                ))
+                            }
+                        )
+                    }
+
+                    is ScreenDestinations.ARViewer -> NavEntry(key) {
+                        template.common.screens.ARViewerScreen(
+                            trackingImage = key.trackingImage,
+                            modelUrl = key.modelUrl,
+                            videoUrl = key.videoUrl,
+                            isVideo = key.isVideo,
+                            onBack = { navigator.goBack() }
                         )
                     }
                 }

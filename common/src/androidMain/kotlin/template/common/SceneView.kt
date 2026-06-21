@@ -255,7 +255,7 @@ actual fun SceneView(
 
                 if (arMode == ARMode.Image) {
                     for (image in detectedImages.values) {
-                        if (videoUrl != null && (image.name == trackingImage || image.name == "images/cute.jpeg")) {
+                        if (videoUrl != null && image.name == trackingImage) {
                             AugmentedImageNode(augmentedImage = image, applyImageScale = true) {
                                 if (mediaPlayer != null) {
                                     VideoNode(

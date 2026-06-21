@@ -15,29 +15,48 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
 import template.common.components.AppBar
+import template.common.database.ARLocalDataSource
+import template.common.network.ApiService
 import template.common.util.PlatformUtils
 
 @Composable
 fun ARImageDemo(onBack: () -> Unit) {
+    val apiService: ApiService = koinInject()
+    val localDataSource: ARLocalDataSource = koinInject()
+    
+    val managedItems by apiService.managedItems.collectAsState()
+    val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
+    
+    // Find the first available item that is NOT a video
+    val sampleItem = remember(managedItems, localItems) {
+        (managedItems + localItems).firstOrNull { !it.isVideo }
+    }
+
     var showGuide by remember { mutableStateOf(false) }
     
-    // In this demo, we use a local asset for tracking.
-    // NOTE: Web platform requires a compiled .mind file, while Android tracks JPG/PNG directly.
-    val trackingTarget = if (PlatformUtils.isWeb) "images/cute.mind" else "images/cute.jpeg"
-    val modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-    
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-        SceneView(
-            modifier = Modifier.fillMaxSize(),
-            isAR = true,
-            arMode = ARMode.Image,
-            trackingImage = trackingTarget,
-            modelUrl = modelUrl,
-            // videoUrl = "https://example.com/video.mp4" // Android also supports video tracking
-        )
+        if (sampleItem != null) {
+            SceneView(
+                modifier = Modifier.fillMaxSize(),
+                isAR = true,
+                arMode = ARMode.Image,
+                trackingImage = if (PlatformUtils.isWeb) sampleItem.mindUrl else sampleItem.targetImageUrl,
+                modelUrl = sampleItem.contentUrl
+            )
+        } else {
+            // Fallback UI or Loading
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("No 3D Model AR target found in database.", color = Color.White)
+                }
+            }
+        }
 
         // Overlay UI
         Column(modifier = Modifier.fillMaxSize()) {
@@ -79,7 +98,7 @@ fun ARImageDemo(onBack: () -> Unit) {
                                 Text("Chibi", color = Color.White, fontSize = 10.sp)
                             }
                             Text(
-                                text = "Point at cute.jpeg to see the ${if (PlatformUtils.isWeb) "Astronaut (Web)" else "Astronaut (Native)"}",
+                                text = "Point at the target image to see the ${sampleItem?.name ?: "model"} ${if (PlatformUtils.isWeb) "(Web)" else "(Native)"}",
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyMedium
                             )

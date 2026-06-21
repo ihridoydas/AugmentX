@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     id(libs.plugins.dokka.get().pluginId)
 }
 
@@ -78,6 +79,8 @@ kotlin {
                 implementation(libs.ktor.client.android)
                 implementation(libs.sceneview)
                 implementation(libs.arsceneview)
+                
+                implementation(libs.androidx.room.runtime)
             }
         }
         val androidUnitTest by getting {
@@ -114,6 +117,7 @@ kotlin {
 
 dependencies {
     "debugImplementation"(libs.compose.ui.test.manifest)
+    add("kspAndroid", libs.androidx.room.compiler)
 }
 
 compose.desktop {

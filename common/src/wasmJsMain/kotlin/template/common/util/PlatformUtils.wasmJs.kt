@@ -69,6 +69,8 @@ actual object PlatformUtils {
         input.click()
     }
 
+    actual fun generateId(): String = (0..1000000).random().toString() // Simple fallback for now
+
     actual suspend fun readBytes(url: String): ByteArray {
         val cleanUrl = url.substringBefore("#")
         val response = window.fetch(cleanUrl).await()

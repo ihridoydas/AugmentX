@@ -35,5 +35,7 @@ expect object PlatformUtils {
 
     fun pickFile(allowedTypes: String, onPicked: (String) -> Unit)
 
+    fun generateId(): String
+
     suspend fun readBytes(url: String): ByteArray
 }

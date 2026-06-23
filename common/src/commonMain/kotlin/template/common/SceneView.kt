@@ -23,5 +23,11 @@ expect fun SceneView(
     imageTargets: Map<String, String> = emptyMap(),
     autoRotate: Boolean = false,
     skyboxUrl: String? = null,
+    exposure: Float = 1.0f,
+    fogDensity: Float = 0.0f,
+    animationSpeed: Float = 1.0f,
+    textContent: String? = null,
+    scale: Float = 1.0f,
+    billboard: Boolean = false,
     onModelLoaded: () -> Unit = {}
 )

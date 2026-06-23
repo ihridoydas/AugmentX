@@ -1,6 +1,8 @@
 package template.common.screens.demos
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -14,6 +16,8 @@ import template.common.components.AppBar
 
 @Composable
 fun BillboardDemo(onBack: () -> Unit) {
+    var billboardEnabled by remember { mutableStateOf(true) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
@@ -29,19 +33,32 @@ fun BillboardDemo(onBack: () -> Unit) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
+                billboard = billboardEnabled,
+                textContent = if (billboardEnabled) "Billboard Node" else null
             )
 
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "Billboard nodes always face the camera.",
-                    color = Color.White,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(12.dp)
+                ) {
+                    Switch(checked = billboardEnabled, onCheckedChange = { billboardEnabled = it })
+                    Spacer(Modifier.width(12.dp))
+                    Text("Auto-face Camera", color = Color.White)
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
+                    Text(
+                        text = "Billboard nodes automatically rotate to always face the camera.",
+                        color = Color.White,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

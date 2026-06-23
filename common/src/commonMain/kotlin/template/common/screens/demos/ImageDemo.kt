@@ -1,6 +1,8 @@
 package template.common.screens.demos
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -14,9 +16,10 @@ import template.common.components.AppBar
 
 @Composable
 fun ImageDemo(onBack: () -> Unit) {
+    var scale by remember { mutableStateOf(1f) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
         topBar = {
             AppBar(
                 title = "3D Image Plane",
@@ -28,20 +31,31 @@ fun ImageDemo(onBack: () -> Unit) {
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
-                // Rendering an image as a 3D plane
                 modelUrl = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb", 
+                scale = scale
             )
 
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f))
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Image Scale: ${((scale * 10).toInt() / 10f)}", color = Color.White)
+                        Slider(
+                            value = scale,
+                            onValueChange = { scale = it },
+                            valueRange = 0.1f..3f
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.height(16.dp))
+                
                 Text(
-                    text = "Displaying 2D images as 3D textures or planes.",
+                    text = "Rendering 2D textures as dynamic 3D planes.",
                     color = Color.White,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(8.dp)).padding(8.dp)
                 )
             }
         }

@@ -67,7 +67,9 @@ fun main() {
             fun loadRegistry(file: File = registryFile): MutableList<ManagedARItem> {
                 return if (file.exists()) {
                     try {
-                        jsonSerializer.decodeFromString<List<ManagedARItem>>(file.readText()).toMutableList()
+                        val items = jsonSerializer.decodeFromString<List<ManagedARItem>>(file.readText())
+                        // Deduplicate by ID to prevent ghost entries
+                        items.distinctBy { it.id.trim().lowercase() }.toMutableList()
                     } catch (e: Exception) {
                         mutableListOf()
                     }
@@ -114,65 +116,107 @@ fun main() {
             }
 
             post("/compile") {
-                println("Backend: POST /compile - Received request")
+                println("\nBackend: POST /compile - NEW REQUEST")
                 try {
                     val multipart = call.receiveMultipart()
                     var targetName = "Unknown"
-                    var targetId = UUID.randomUUID().toString()
+                    var targetId = "" 
                     var targetImageUrl = ""
                     var contentUrl = ""
                     var isVideoValue: Boolean? = null
+                    var customMindFile: File? = null
                     
                     val baseUrl = "http://127.0.0.1:8888/uploads"
 
-                    multipart.forEachPart { part ->
-                        when (part) {
-                            is PartData.FormItem -> {
-                                when (part.name) {
-                                    "name" -> targetName = part.value
-                                    "isVideo" -> isVideoValue = part.value.toBoolean()
+                    // Collect parts first to ensure we have the ID before processing files
+                    val parts = mutableListOf<PartData>()
+                    multipart.forEachPart { parts.add(it) }
+
+                    // 1. Process FormItems to get ID and Name
+                    parts.filterIsInstance<PartData.FormItem>().forEach { part ->
+                        val fieldName = part.name?.lowercase() ?: ""
+                        when (fieldName) {
+                            "id" -> {
+                                val providedId = part.value.trim()
+                                if (providedId.isNotEmpty()) {
+                                    targetId = providedId
+                                    println("Backend: UPDATE FLOW - ID: '$targetId'")
+                                    // Pre-cleanup of old files for this specific ID
+                                    uploadDir.listFiles()?.filter { it.name.startsWith(targetId) }?.forEach { it.delete() }
                                 }
                             }
-                            is PartData.FileItem -> {
-                                val originalName = part.originalFileName ?: "file"
-                                val fileName = if (part.name == "content" && isVideoValue == true && !originalName.contains(".mp4", ignoreCase = true)) {
-                                    "${targetId}_content.mp4"
-                                } else if (part.name == "content" && isVideoValue == false && !originalName.contains(".glb", ignoreCase = true)) {
-                                    "${targetId}_content.glb"
-                                } else {
-                                    "${targetId}_$originalName"
-                                }
-                                
-                                val file = File(uploadDir, fileName)
-                                part.streamProvider().use { input ->
-                                    file.outputStream().buffered().use { output ->
-                                        input.copyTo(output)
-                                    }
-                                }
-                                if (part.name == "image") {
-                                    targetImageUrl = "$baseUrl/$fileName"
-                                } else if (part.name == "content") {
-                                    contentUrl = "$baseUrl/$fileName"
-                                    if (isVideoValue == null) {
-                                        isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
-                                                      part.contentType?.toString()?.contains("video") == true
-                                    }
-                                }
-                                println("Backend: Saved file $fileName")
-                            }
-                            else -> {}
+                            "name" -> targetName = part.value
+                            "isvideo" -> isVideoValue = part.value.toBoolean()
                         }
-                        part.dispose()
                     }
 
+                    // Ensure targetId exists (only generate if not provided)
+                    if (targetId.isEmpty()) {
+                        targetId = UUID.randomUUID().toString()
+                        println("Backend: NEW TARGET FLOW - Generated ID: $targetId")
+                    }
+
+                    // 2. Process FileItems
+                    parts.filterIsInstance<PartData.FileItem>().forEach { part ->
+                        val pName = part.name ?: "file"
+                        val originalName = part.originalFileName ?: "file"
+                        val partKey = pName.lowercase()
+                        
+                        val fileName = when {
+                            partKey == "content" && isVideoValue == true -> "${targetId}_content.mp4"
+                            partKey == "content" && isVideoValue == false -> "${targetId}_content.glb"
+                            partKey == "mind" || originalName.endsWith(".mind") -> "${targetId}_target.mind"
+                            else -> "${targetId}_$originalName"
+                        }
+                        
+                        val file = File(uploadDir, fileName)
+                        part.streamProvider().use { input ->
+                            file.outputStream().buffered().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        println("Backend: Saved '$pName' to ${file.name} (${file.length()} bytes)")
+                        
+                        when (partKey) {
+                            "image" -> targetImageUrl = "$baseUrl/$fileName"
+                            "content" -> {
+                                contentUrl = "$baseUrl/$fileName"
+                                if (isVideoValue == null) {
+                                    isVideoValue = fileName.contains(".mp4", ignoreCase = true) || 
+                                                  part.contentType?.toString()?.contains("video") == true
+                                }
+                            }
+                            "mind" -> {
+                                if (file.length() > 100) customMindFile = file
+                            }
+                        }
+                    }
+
+                    // Dispose all parts
+                    parts.forEach { it.dispose() }
+
                     val isVideo = isVideoValue ?: false
-                    val mindFileName = "${targetId}.mind"
-                    val mindFile = File(uploadDir, mindFileName)
-                    mindFile.writeText("MIND_FILE_CONTENT_FOR_$targetId")
-                    val mindUrl = "$baseUrl/$mindFileName"
+                    
+                    val mindFile = if (customMindFile != null && customMindFile.exists() && customMindFile.length() > 500) {
+                        customMindFile
+                    } else {
+                        val errorMsg = if (customMindFile == null) "MIND part missing" else "MIND data empty (${customMindFile.length()} bytes)"
+                        println("Backend: CRITICAL - $errorMsg. Terminating request.")
+                        throw Exception(errorMsg)
+                    }
+                    val mindUrl = "$baseUrl/${mindFile.name}"
 
                     // Persist to registry
                     val items = loadRegistry()
+                    val tid = targetId.trim().lowercase()
+                    val existingItem = items.find { it.id.trim().lowercase() == tid }
+                    val creationTime = existingItem?.createdAt ?: System.currentTimeMillis()
+                    
+                    if (existingItem != null) {
+                        println("Backend: Replacing existing item in registry: $targetId")
+                        items.removeAll { it.id.trim().lowercase() == tid }
+                    }
+                    
                     val newItem = ManagedARItem(
                         id = targetId,
                         name = targetName,
@@ -180,17 +224,19 @@ fun main() {
                         contentUrl = contentUrl,
                         mindUrl = mindUrl,
                         isVideo = isVideo,
-                        createdAt = System.currentTimeMillis(),
+                        createdAt = creationTime,
                         imageUploaded = targetImageUrl.isNotEmpty(),
                         contentUploaded = contentUrl.isNotEmpty(),
-                        mindGenerated = mindUrl.isNotEmpty()
+                        mindGenerated = true
                     )
                     items.add(newItem)
                     saveRegistry(items)
 
+                    println("Backend: Request Complete. ID: $targetId (Updated: ${existingItem != null}), Mind: ${mindFile.name}\n")
                     call.respond(CompileResponse(targetId = targetId, mindUrl = mindUrl))
                 } catch (e: Exception) {
-                    println("Backend: ERROR processing /compile: ${e.message}")
+                    println("Backend: FATAL ERROR: ${e.message}")
+                    e.printStackTrace()
                     call.respond(HttpStatusCode.InternalServerError, e.message ?: "Unknown Error")
                 }
             }

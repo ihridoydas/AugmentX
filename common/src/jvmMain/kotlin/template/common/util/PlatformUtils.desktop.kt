@@ -56,4 +56,8 @@ actual object PlatformUtils {
             ByteArray(0)
         }
     }
+
+    actual suspend fun compileMindAR(imageUrls: List<String>): String = ""
+
+    actual fun downloadFile(url: String, fileName: String) {}
 }

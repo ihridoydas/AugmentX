@@ -220,7 +220,7 @@ fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinI
                 if (selectedCategory.title == "Creator") {
                     selectedCategory.items.filter { item ->
                         if (PlatformUtils.isWeb) {
-                            item.id == "ar-creator" || item.id == "ar-manage"
+                            item.id == "ar-creator" || item.id == "ar-manage" || item.id == "ar-compiler"
                         } else {
                             item.id == "ar-creator_android" || item.id == "ar-manage_Android"
                         }
@@ -240,6 +240,7 @@ fun HomeScreen(navigator: Navigator, themeDataStore: ThemeLocalDataStore = koinI
                         item = item,
                         onClick = {
                             when (item.id) {
+                                "ar-compiler" -> navigator.navigate(ScreenDestinations.ARCompiler)
                                 "ar-creator" -> {
                                     if (PlatformUtils.isWeb) {
                                         navigator.navigate(ScreenDestinations.ARCreator())

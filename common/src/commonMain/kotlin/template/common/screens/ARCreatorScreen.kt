@@ -4,26 +4,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.decodeToImageBitmap
 import org.koin.compose.koinInject
 import template.common.ARMode
 import template.common.SceneView
@@ -41,40 +44,32 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
     val localItems by localDataSource.getAllItems().collectAsState(initial = emptyList())
     
     val combinedItems = remember(managedItems, localItems) { managedItems + localItems }
-    
     val snackbarHostState = remember { SnackbarHostState() }
     
     val existingItem = remember(editId, combinedItems) { 
         combinedItems.find { it.id == editId }
     }
 
-    var targetName by remember { mutableStateOf(existingItem?.name ?: "") }
-    var targetImageUrl by remember { mutableStateOf<String?>(existingItem?.targetImageUrl) }
-    var contentUrl by remember { mutableStateOf<String?>(existingItem?.contentUrl) }
-    var isVideo by remember { mutableStateOf(existingItem?.isVideo ?: false) }
+    // Initialize state from existing item
+    var targetName by remember(existingItem) { mutableStateOf(existingItem?.name ?: "") }
+    val targetImageUrls = remember(existingItem) { 
+        val list = mutableStateListOf<String>()
+        existingItem?.let { list.add(it.targetImageUrl) }
+        list
+    }
+    var contentUrl by remember(existingItem) { mutableStateOf(existingItem?.contentUrl) }
+    var isVideo by remember(existingItem) { mutableStateOf(existingItem?.isVideo ?: false) }
     var isCompiling by remember { mutableStateOf(false) }
     var showAR by remember { mutableStateOf(false) }
-    var targetId by remember { mutableStateOf(existingItem?.id) }
-    var compiledMindUrl by remember { mutableStateOf(existingItem?.mindUrl) }
+    var targetId by remember(existingItem) { mutableStateOf(editId ?: existingItem?.id) }
+    var compiledMindUrl by remember(existingItem) { mutableStateOf(existingItem?.mindUrl) }
 
     var exposure by remember { mutableStateOf(1.0f) }
     var scale by remember { mutableStateOf(1.0f) }
-    var liveText by remember { mutableStateOf("") }
+    var liveText by remember(targetName) { mutableStateOf(targetName) }
     var showControls by remember { mutableStateOf(true) }
 
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(existingItem) {
-        existingItem?.let {
-            targetName = it.name
-            targetImageUrl = it.targetImageUrl
-            contentUrl = it.contentUrl
-            isVideo = it.isVideo
-            targetId = it.id
-            compiledMindUrl = it.mindUrl
-            liveText = it.name
-        }
-    }
 
     if (showAR && compiledMindUrl != null && contentUrl != null) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -82,7 +77,7 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
                 isAR = true,
                 arMode = ARMode.Image,
-                trackingImage = if (PlatformUtils.isWeb) compiledMindUrl else targetImageUrl,
+                trackingImage = if (PlatformUtils.isWeb) compiledMindUrl else targetImageUrls.firstOrNull(),
                 videoUrl = if (isVideo) contentUrl else null,
                 modelUrl = if (!isVideo) contentUrl else null,
                 exposure = exposure,
@@ -177,10 +172,13 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
             )
 
             if (!PlatformUtils.isWeb) {
-                // Android-specific: Direct URL inputs
+                // Android-specific: Direct URL input
                 OutlinedTextField(
-                    value = targetImageUrl ?: "",
-                    onValueChange = { targetImageUrl = it },
+                    value = targetImageUrls.firstOrNull() ?: "",
+                    onValueChange = { 
+                        targetImageUrls.clear()
+                        targetImageUrls.add(it)
+                    },
                     label = { Text("Tracking Image URL (JPG/PNG)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -204,25 +202,57 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     Text("Is Video Content?")
                 }
             } else {
-                // Web/Default: File Pickers
-                // Step 1: Target Image
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CreatorStep(
-                        title = "1. Select Tracking Image",
-                        description = "JPG/PNG image to be tracked.",
-                        isDone = targetImageUrl != null,
-                        onClick = {
-                            PlatformUtils.pickFile("image/*") { url -> targetImageUrl = url }
+                // WEB: Ported directly from ARCompilerScreen
+                Text("1. Tracking Images", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .clickable {
+                            PlatformUtils.pickFile("image/*") { url -> targetImageUrls.add(url) }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (targetImageUrls.isEmpty()) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.AddPhotoAlternate, null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Click to add images", fontWeight = FontWeight.Medium)
                         }
-                    )
-                    if (targetImageUrl != null) {
-                        Text("Image ready for upload", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(100.dp),
+                            modifier = Modifier.heightIn(max = 400.dp),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            itemsIndexed(targetImageUrls) { index, url ->
+                                ARCreatorImagePreviewCard(url) { targetImageUrls.removeAt(index) }
+                            }
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                        .clickable { PlatformUtils.pickFile("image/*") { url -> targetImageUrls.add(url) } },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Add, null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
                     }
                 }
 
                 // Step 2: Content
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CreatorStep(
+                    ARCreatorStepItem(
                         title = "2. Select AR Content",
                         description = "GLB model or MP4 video.",
                         isDone = contentUrl != null,
@@ -245,104 +275,100 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Current .mind File:", fontWeight = FontWeight.Bold)
-                        Text(compiledMindUrl!!, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Tracking Data Ready", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text(compiledMindUrl!!, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        }
+                        IconButton(onClick = { 
+                            PlatformUtils.downloadFile(compiledMindUrl!!, "${targetName.ifBlank { "target" }}.mind") 
+                        }) {
+                            Icon(Icons.Default.CloudUpload, "Download")
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (isCompiling) {
-                CircularProgressIndicator()
-                val loadingText = if (PlatformUtils.isWeb) {
-                    if (targetId == null) "Creating .mind file..." else "Updating .mind file..."
-                } else {
-                    if (targetId == null) "Saving to database..." else "Updating database..."
-                }
-                Text(loadingText, fontSize = 14.sp)
-            } else {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (compiledMindUrl != null || (!PlatformUtils.isWeb && targetImageUrl != null && contentUrl != null)) {
-                        OutlinedButton(
-                            onClick = { showAR = true },
-                            modifier = Modifier.weight(1f).height(56.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Test Live")
-                        }
-                    }
-                    
-                    Button(
-                        onClick = {
-                            isCompiling = true
-                            scope.launch {
-                                try {
-                                    if (PlatformUtils.isWeb) {
-                                        val response = if (targetId == null) {
-                                            apiService.compileMindAR(targetImageUrl!!, contentUrl!!, targetName, isVideo)
-                                        } else {
-                                            apiService.updateMindAR(targetId!!, targetImageUrl!!, contentUrl!!, targetName, isVideo)
-                                        }
-                                        targetId = response.targetId
-                                        compiledMindUrl = response.mindUrl
-                                    } else {
-                                        // Android Local Room Save
-                                        val newItem = ManagedARItem(
-                                            id = targetId ?: PlatformUtils.generateId(),
-                                            name = targetName,
-                                            targetImageUrl = targetImageUrl!!,
-                                            contentUrl = contentUrl!!,
-                                            mindUrl = compiledMindUrl ?: "", 
-                                            isVideo = isVideo,
-                                            createdAt = 0L,
-                                            imageUploaded = true,
-                                            contentUploaded = true,
-                                            mindGenerated = false // Mind files not needed for Native Android
-                                        )
-                                        localDataSource.insertItem(newItem)
-                                        targetId = newItem.id
-                                        
-                                        // Save to backend registry_android.json
-                                        try {
-                                            apiService.saveAndroidTarget(newItem)
-                                        } catch (e: Exception) {
-                                            println("ARCreator: Backend save failed, but saved locally: ${e.message}")
-                                        }
-                                    }
-                                    snackbarHostState.showSnackbar(
-                                        message = if (editId == null) "Target created successfully!" else "Target updated successfully!",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                } catch (e: Throwable) {
-                                    println("ARCreator: Error during save: ${e.message}")
-                                    snackbarHostState.showSnackbar(
-                                        message = "Error: ${e.message ?: "Failed to process request"}",
-                                        duration = SnackbarDuration.Long
-                                    )
-                                } finally {
-                                    isCompiling = false
-                                }
-                            }
-                        },
-                        enabled = targetImageUrl != null && contentUrl != null && targetName.isNotBlank(),
-                        modifier = Modifier.weight(1.5f).height(56.dp),
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (compiledMindUrl != null) {
+                    OutlinedButton(
+                        onClick = { showAR = true },
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        val icon = if (targetId == null) {
-                            if (PlatformUtils.isWeb) Icons.Default.CloudUpload else Icons.Default.Check
-                        } else {
-                            Icons.Default.Refresh
+                        Text("Test Live")
+                    }
+                }
+                
+                Button(
+                    onClick = {
+                        isCompiling = true
+                        scope.launch {
+                            try {
+                                if (PlatformUtils.isWeb) {
+                                    // 1. Compile Locally (Same as Working Compiler Screen)
+                                    println("ARCreator: Starting final compilation...")
+                                    val finalLocalMindUrl = PlatformUtils.compileMindAR(targetImageUrls.toList())
+                                    
+                                    if (finalLocalMindUrl.isBlank()) {
+                                        throw Exception("Compilation failed - No tracking data generated.")
+                                    }
+
+                                    // 2. Upload to Backend
+                                    println("ARCreator: Uploading with Mind URL: $finalLocalMindUrl")
+                                    val response = if (targetId == null) {
+                                        apiService.compileMindAR(targetImageUrls.first(), contentUrl!!, targetName, isVideo, finalLocalMindUrl)
+                                    } else {
+                                        apiService.updateMindAR(targetId!!, targetImageUrls.first(), contentUrl!!, targetName, isVideo, finalLocalMindUrl)
+                                    }
+                                    
+                                    targetId = response.targetId
+                                    compiledMindUrl = response.mindUrl
+                                    
+                                    // 3. Trigger Download (Verification) - USE LOCAL BLOB for guaranteed naming
+                                    PlatformUtils.downloadFile(finalLocalMindUrl, "${targetName.ifBlank { "target" }}.mind")
+                                    snackbarHostState.showSnackbar("Compilation Finished & Downloaded!")
+                                } else {
+                                    // Android Local Room Save
+                                    val newItem = ManagedARItem(
+                                        id = targetId ?: PlatformUtils.generateId(),
+                                        name = targetName,
+                                        targetImageUrl = targetImageUrls.firstOrNull() ?: "",
+                                        contentUrl = contentUrl!!,
+                                        mindUrl = compiledMindUrl ?: "", 
+                                        isVideo = isVideo,
+                                        createdAt = 0L,
+                                        imageUploaded = true,
+                                        contentUploaded = true,
+                                        mindGenerated = false
+                                    )
+                                    localDataSource.insertItem(newItem)
+                                    targetId = newItem.id
+                                    apiService.saveAndroidTarget(newItem)
+                                    snackbarHostState.showSnackbar("Target Saved Successfully!")
+                                }
+                            } catch (e: Throwable) {
+                                snackbarHostState.showSnackbar("Error: ${e.message}")
+                            } finally {
+                                isCompiling = false
+                            }
                         }
-                        Icon(icon, null)
+                    },
+                    enabled = targetImageUrls.isNotEmpty() && contentUrl != null && targetName.isNotBlank() && !isCompiling,
+                    modifier = Modifier.weight(1.5f).height(56.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isCompiling) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Build, null)
                         Spacer(Modifier.width(12.dp))
-                        val buttonText = if (PlatformUtils.isWeb) {
-                            if (targetId == null) "Create & Compile" else "Update & Compile"
-                        } else {
-                            if (targetId == null) "Save to Database" else "Update Target"
-                        }
-                        Text(buttonText)
+                        Text(if (targetId == null) "Start Compilation" else "Update & Compile")
                     }
                 }
             }
@@ -351,33 +377,48 @@ fun ARCreatorScreen(editId: String? = null, onBack: () -> Unit) {
 }
 
 @Composable
-fun CreatorStep(
-    title: String,
-    description: String,
-    isDone: Boolean,
-    onClick: () -> Unit
-) {
+fun ARCreatorImagePreviewCard(url: String, onRemove: () -> Unit) {
+    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(url) {
+        try {
+            val bytes = PlatformUtils.readBytes(url)
+            bitmap = bytes.decodeToImageBitmap()
+        } catch (e: Exception) { /* Ignore */ }
+    }
+    Box(modifier = Modifier.size(100.dp)) {
+        if (bitmap != null) {
+            androidx.compose.foundation.Image(
+                bitmap = bitmap!!,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(Color.Gray.copy(alpha = 0.2f)))
+        }
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier.align(Alignment.TopEnd).size(24.dp).padding(4.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+        ) {
+            Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+fun ARCreatorStepItem(title: String, description: String, isDone: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
             .border(2.dp, if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray, RoundedCornerShape(16.dp))
             .clickable { onClick() },
         color = if (isDone) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, fontWeight = FontWeight.Bold, color = if (isDone) MaterialTheme.colorScheme.primary else Color.Unspecified)
                 Text(text = description, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            Icon(
-                imageVector = if (isDone) Icons.Default.Check else Icons.Default.Add,
-                contentDescription = null,
-                tint = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray
-            )
+            Icon(imageVector = if (isDone) Icons.Default.Check else Icons.Default.Add, contentDescription = null, tint = if (isDone) MaterialTheme.colorScheme.primary else Color.LightGray)
         }
     }
 }

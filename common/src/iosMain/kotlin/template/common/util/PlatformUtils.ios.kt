@@ -60,4 +60,8 @@ actual object PlatformUtils {
         // Simple fallback, real iOS impl would use NSData or similar
         return ByteArray(0)
     }
+
+    actual suspend fun compileMindAR(imageUrls: List<String>): String = ""
+
+    actual fun downloadFile(url: String, fileName: String) {}
 }

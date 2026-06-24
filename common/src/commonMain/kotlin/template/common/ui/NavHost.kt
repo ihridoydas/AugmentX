@@ -161,6 +161,12 @@ fun MainAnimationNavHost(onBackPressedRegister: ((() -> Unit) -> Unit)? = null) 
                             onBack = { navigator.goBack() }
                         )
                     }
+
+                    ScreenDestinations.ARCompiler -> NavEntry(key) {
+                        template.common.screens.ARCompilerScreen(
+                            onBack = { navigator.goBack() }
+                        )
+                    }
                 }
             }
         }

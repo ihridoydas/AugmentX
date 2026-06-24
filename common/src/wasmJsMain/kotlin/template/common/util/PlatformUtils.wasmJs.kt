@@ -35,6 +35,8 @@ import org.khronos.webgl.Uint8Array
 import org.khronos.webgl.get
 import org.khronos.webgl.ArrayBuffer
 
+import kotlin.js.Promise
+
 actual object PlatformUtils {
     actual val isWeb: Boolean = true
 
@@ -72,13 +74,68 @@ actual object PlatformUtils {
     actual fun generateId(): String = (0..1000000).random().toString() // Simple fallback for now
 
     actual suspend fun readBytes(url: String): ByteArray {
-        val cleanUrl = url.substringBefore("#")
-        val response = window.fetch(cleanUrl).await()
-        val buffer = response.arrayBuffer().await()
-        val uint8Array = Uint8Array(buffer)
-        return ByteArray(uint8Array.length) { i -> uint8Array[i] }
+        val cleanUrl = url.split("#")[0]
+        println("PlatformUtils: Reading bytes from $cleanUrl")
+        return try {
+            val jsUint8Array = callReadBlobAsUint8Array(cleanUrl).await<Uint8Array>()
+            val len = jsUint8Array.length
+            val bytes = ByteArray(len)
+            for (i in 0 until len) {
+                bytes[i] = jsUint8Array[i]
+            }
+            println("PlatformUtils: READ SUCCESS: $len bytes from $cleanUrl")
+            bytes
+        } catch (e: Exception) {
+            println("PlatformUtils: READ FAILED for $cleanUrl: ${e.message}")
+            ByteArray(0)
+        }
+    }
+
+    actual suspend fun compileMindAR(imageUrls: List<String>): String {
+        println("PlatformUtils: Requesting JS compilation for ${imageUrls.size} images")
+        return try {
+            val jsArray = jsArrayOf()
+            imageUrls.forEachIndexed { index, url -> 
+                 jsArraySet(jsArray, index, url.toJsString())
+            }
+            
+            val jsObj = callCompileMindAR(jsArray).await()
+            val result = (jsObj as JsString).toString()
+            println("PlatformUtils: Compilation result: $result")
+            result
+        } catch (e: Exception) {
+            println("PlatformUtils: Compilation FAILED: ${e.message}")
+            throw e
+        }
+    }
+
+    actual fun downloadFile(url: String, fileName: String) {
+        triggerDownload(url, fileName)
     }
 }
+
+@JsFun("(arr, index, value) => { arr[index] = value; }")
+external fun jsArraySet(arr: JsArray<JsString>, index: Int, value: JsString)
+
+@JsFun("() => []")
+external fun jsArrayOf(): JsArray<JsString>
+
+@JsFun("(url) => fetch(url).then(r => r.arrayBuffer()).then(b => new Uint8Array(b))")
+external fun callReadBlobAsUint8Array(url: String): Promise<Uint8Array>
+
+@JsFun("(imageUrls) => window.compileMindAR(imageUrls)")
+external fun callCompileMindAR(imageUrls: JsArray<JsString>): Promise<JsAny>
+
+@JsFun("(url, name) => { " +
+    "if (url.startsWith('blob:')) {" +
+    "  const a = document.createElement('a'); a.href = url; a.download = name; a.click();" +
+    "} else {" +
+    "  fetch(url).then(r => r.blob()).then(b => {" +
+    "    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();" +
+    "  });" +
+    "}" +
+"}")
+external fun triggerDownload(url: String, name: String)
 
 @JsFun("() => { window.location.href = window.location.origin; }")
 external fun triggerHardReset()
